@@ -31,6 +31,12 @@ class ProblemItem(models.Model):
     def __str__(self):
         return self.title
     
+    def save(self, *args, **kwargs):
+        self.slug = slugify(self.title)
+        super().save(*args, **kwargs)
+    
+
+    
 
 
 class ProblemQuiz(models.Model):
@@ -82,6 +88,7 @@ class Problems(models.Model):
     problems = models.ManyToManyField(ProblemItem)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    description = models.TextField(blank=True,null=True)
     def __str__(self):
         return self.title
     

@@ -8,23 +8,36 @@ from rest_framework.parsers import FormParser,MultiPartParser
 from rest_framework import permissions,status
 from .serializer import UserCreateSerializer,UserUpdateSerializer
 from rest_framework.response import Response
-
+from .models import Problems
+from rest_framework.decorators import action
+from django.shortcuts import get_object_or_404
 
 User = get_user_model()
 
 class UserViewSet(viewsets.ModelViewSet):
-    """
-    A ViewSet for viewing and editing the logged in user's data.
-    """
+    
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """
-        This view should return a list containing only the current user.
-        """
+        
         user = self.request.user
         return User.objects.filter(id=user.id)
+    
+    @action(detail=False, methods=['post'], url_path='add-problem')
+    def add_problem(self, request, pk=None):
+        
+        problem_id = request.data.get('problem_id')
+        if not problem_id:
+            return Response({"error": "Problem ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        problem = get_object_or_404(Problems, pk=problem_id)
+        if request.user.problems.filter(id=problem_id).exists():
+            request.user.problems.remove(problem)
+            return Response({"success": f"Problem {problem_id} removed from user."}, status=status.HTTP_200_OK)
+        else:
+            request.user.problems.add(problem)
+            return Response({"success": f"Problem {problem_id} added to user."}, status=status.HTTP_200_OK)
 
 
 class UserUpdate(UpdateAPIView):
