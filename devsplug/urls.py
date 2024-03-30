@@ -25,4 +25,5 @@ urlpatterns = [
     path(r'^filer/', include('filer.urls')),
     path('documentation<format>/', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     path('documentation/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('challenges/',include('challenges.urls'), name='challenges'),
 ]
