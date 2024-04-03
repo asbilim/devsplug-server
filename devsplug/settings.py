@@ -196,6 +196,7 @@ CKEDITOR_CONFIGS = {
             'mathjax',  # For math formulas
         ]),
         'codeSnippet_theme': 'monokai_sublime',
+        'extraAllowedContent': 'SyntaxHighlighter[language,style](*);',
     }
 }
 

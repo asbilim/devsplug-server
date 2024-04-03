@@ -41,7 +41,7 @@ class ProblemItem(models.Model):
 
 class ProblemQuiz(models.Model):
 
-    title = models.CharField(max_length=250,unique=True)
+    title = models.CharField(max_length=250,unique=True,null=True)
     slug = models.SlugField(null=True, blank=True)
     problem = models.ForeignKey(ProblemItem, related_name="quiz",on_delete=models.CASCADE)
 
@@ -50,6 +50,7 @@ class ProblemQuiz(models.Model):
         return self.title
     
     def save(self, *args, **kwargs):
+        self.title = self.problem.title
         self.slug = slugify(self.title)
         super().save(*args, **kwargs)
 
@@ -65,6 +66,9 @@ class QuizQuestion(models.Model):
         self.slug = slugify(self.title)
         super().save(*args, **kwargs)
 
+    def __str__(self):
+        return self.title
+
 class QuizQuestionAnswer(models.Model):
 
     content = RichTextUploadingField()
@@ -73,7 +77,7 @@ class QuizQuestionAnswer(models.Model):
 
     def __str__(self):
         
-        return f"{self.quizquestion.title} answer"
+        return f"{self.is_correct} {self.quizquestion.title} {self.content}"
 
 
 
@@ -118,10 +122,11 @@ class UserAnswer(models.Model):
     question = models.ForeignKey("challenges.QuizQuestion", on_delete=models.CASCADE, related_name="user_answers")
     selected_answer = models.ForeignKey("challenges.QuizQuestionAnswer", on_delete=models.CASCADE, related_name="selected_by_users")
     is_correct = models.BooleanField(default=False)
-
+    score = models.IntegerField(default=0,blank=True, null=True)
     def save(self, *args, **kwargs):
         # Automatically check if the selected answer is correct when saving.
         self.is_correct = self.selected_answer.is_correct
+        self.score = self.question.value if self.is_correct else 0
         super().save(*args, **kwargs)
 
     def __str__(self):

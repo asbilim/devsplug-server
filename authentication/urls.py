@@ -5,11 +5,12 @@ from rest_framework_simplejwt.views import (
 )
 from .views import UserViewSet
 from rest_framework.routers import SimpleRouter
-from .views import UserViewSet,UserUpdate,UserCreate
+from .views import UserViewSet,UserUpdate,UserCreate,UserImageCodeView
 
 router = SimpleRouter()
 
 router.register("/me",UserViewSet,basename="user-data")
+router.register("/code",UserImageCodeView,basename="user-image-code")
 
 urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

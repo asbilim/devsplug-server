@@ -1,7 +1,7 @@
 from django.db import models
-from challenges.models import Problems
+from challenges.models import Problems,ProblemQuiz,ProblemItem,UserAnswer
 from django.contrib.auth.models import AbstractUser
-
+from django.utils.text import slugify
 class User(AbstractUser):
 
    
@@ -29,3 +29,44 @@ class User(AbstractUser):
 
         super().save(*args,**kwargs)
 
+class UserQuiz(models.Model):
+
+    def user_directory_path(instance, filename):
+       
+        base_username = slugify(instance.user.username)
+        return f'problems/codes/{base_username}/{filename}'
+    
+    user = models.ForeignKey("authentication.User", on_delete=models.CASCADE)
+    problem_quiz = models.ForeignKey(ProblemQuiz,on_delete=models.CASCADE,null=True,blank=True)
+    is_complete = models.BooleanField(default=False)
+    current_question = models.IntegerField(default=0)
+    total_score = models.IntegerField(default=0,null=True,blank=True)
+    is_noted = models.BooleanField(default=False,null=True,blank=True)
+    image_code = models.ImageField(upload_to=user_directory_path, blank=True,null=True)
+ 
+
+    def __str__(self):
+
+        return f"{self.user} for {self.problem_quiz.title}"
+    
+    def save(self,*args,**kwargs):
+        
+        answers_score = UserAnswer.objects.filter(user=self.user,problem_item__slug=self.problem_quiz.slug).filter(is_correct=True)
+        self.total_score = sum([answer.score for answer in answers_score if answer.is_correct])
+        if self.is_complete and not self.is_noted:
+            self.user.score += self.total_score
+            self.is_noted = True
+
+        super().save(*args,**kwargs)
+
+class UserQuestionAttempt(models.Model):
+
+    user= models.ForeignKey("authentication.User", on_delete=models.CASCADE,null=True,blank=True)
+    problem = models.ForeignKey(ProblemItem,on_delete=models.CASCADE)
+    answers = models.ManyToManyField(UserAnswer)
+    current_question = models.IntegerField(default=1)
+    is_complete = models.BooleanField(default=False)
+
+    def __str__(self):
+
+        return f"{self.user} for {self.problem.title}"
