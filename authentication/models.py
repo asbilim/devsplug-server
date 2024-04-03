@@ -34,7 +34,7 @@ class UserQuiz(models.Model):
     def user_directory_path(instance, filename):
        
         base_username = slugify(instance.user.username)
-        return f'problems/codes/{base_username}/{filename}'
+        return f'problems/codes/{instance.problem_quiz.slug}/{base_username}/{filename}'
     
     user = models.ForeignKey("authentication.User", on_delete=models.CASCADE)
     problem_quiz = models.ForeignKey(ProblemQuiz,on_delete=models.CASCADE,null=True,blank=True)
@@ -43,6 +43,7 @@ class UserQuiz(models.Model):
     total_score = models.IntegerField(default=0,null=True,blank=True)
     is_noted = models.BooleanField(default=False,null=True,blank=True)
     image_code = models.ImageField(upload_to=user_directory_path, blank=True,null=True)
+    is_full = models.BooleanField(default=False,null=True,blank=True)
  
 
     def __str__(self):
@@ -56,6 +57,9 @@ class UserQuiz(models.Model):
         if self.is_complete and not self.is_noted:
             self.user.score += self.total_score
             self.is_noted = True
+
+        if self.image_code:
+            self.is_full = True
 
         super().save(*args,**kwargs)
 
