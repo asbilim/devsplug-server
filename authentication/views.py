@@ -103,6 +103,17 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_questions(self, request):
         problem_item_slug = request.data.get("problem_slug")
         user = request.user
+        
+        try:
+            user_quiz_status = UserQuiz.objects.get(user=user,problem_quiz__slug=problem_item_slug)
+        except Exception as e:
+            print(e)
+            user_quiz_status = False
+
+        if user_quiz_status:
+            is_full = user_quiz_status.is_full
+        else:
+            is_full = False
 
         if not problem_item_slug:
             return Response({"error": "problem_slug parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -134,6 +145,7 @@ class UserViewSet(viewsets.ModelViewSet):
                         "id": question.id,
                         "title": question.title,
                         "is_submitted": submitted_answer_exists,
+                        "is_full":is_full,
                         "answers": answers_data  
                     })
 

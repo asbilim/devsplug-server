@@ -1,7 +1,10 @@
+import shutil
 from django.db import models
 from challenges.models import Problems,ProblemQuiz,ProblemItem,UserAnswer
 from django.contrib.auth.models import AbstractUser
 from django.utils.text import slugify
+import os
+from django.conf import settings
 class User(AbstractUser):
 
    
@@ -18,8 +21,8 @@ class User(AbstractUser):
 
         if self.score < 1001:
             self.title =  'novice'
-        elif self.score < 3001:
-            self.title =  'pro'
+        elif self.score < 1500:
+            self.title =  'programmer'
         elif self.score < 7001:
             self.title =  'plug'
         elif self.score < 15001:
@@ -56,12 +59,29 @@ class UserQuiz(models.Model):
         self.total_score = sum([answer.score for answer in answers_score if answer.is_correct])
         if self.is_complete and not self.is_noted:
             self.user.score += self.total_score
+            self.user.save()
             self.is_noted = True
 
         if self.image_code:
             self.is_full = True
 
         super().save(*args,**kwargs)
+
+    def delete(self, *args, **kwargs):
+        # Custom logic before the actual deletion
+
+        # Example: Reduce user score (adjust the logic based on how you want to reduce the score)
+        if self.user.score and self.total_score:
+            self.user.score -= self.total_score
+            self.user.save()
+
+        # Delete the folder associated with this instance
+        folder_path = os.path.join(settings.MEDIA_ROOT, f'problems/codes/{self.problem_quiz.slug}/{slugify(self.user.username)}')
+        if os.path.isdir(folder_path):
+            shutil.rmtree(folder_path)
+
+        # Call the superclass method to handle default deletion
+        super().delete(*args, **kwargs)
 
 class UserQuestionAttempt(models.Model):
 
