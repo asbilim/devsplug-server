@@ -41,7 +41,7 @@ class ProblemItem(models.Model):
 
 class ProblemQuiz(models.Model):
 
-    title = models.CharField(max_length=250,unique=True)
+    title = models.CharField(max_length=250,unique=True,null=True)
     slug = models.SlugField(null=True, blank=True)
     problem = models.ForeignKey(ProblemItem, related_name="quiz",on_delete=models.CASCADE)
 
@@ -50,6 +50,7 @@ class ProblemQuiz(models.Model):
         return self.title
     
     def save(self, *args, **kwargs):
+        self.title = self.problem.title
         self.slug = slugify(self.title)
         super().save(*args, **kwargs)
 
@@ -65,6 +66,9 @@ class QuizQuestion(models.Model):
         self.slug = slugify(self.title)
         super().save(*args, **kwargs)
 
+    def __str__(self):
+        return self.title
+
 class QuizQuestionAnswer(models.Model):
 
     content = RichTextUploadingField()
@@ -73,7 +77,7 @@ class QuizQuestionAnswer(models.Model):
 
     def __str__(self):
         
-        return f"{self.quizquestion.title} answer"
+        return f"{self.is_correct} {self.quizquestion.title} {self.content}"
 
 
 
@@ -101,14 +105,26 @@ class Problems(models.Model):
 
 class Ratings(models.Model):
 
-    score = models.PositiveIntegerField()
+    score = models.DecimalField(null=True, blank=True,decimal_places=2,max_digits=10)
     message = models.TextField()
     user = models.ForeignKey("authentication.User", on_delete=models.CASCADE,related_name='ratings')
     problem_item = models.ForeignKey(ProblemItem, on_delete=models.CASCADE,related_name='ratings')
-
+    parent = models.ForeignKey("self", on_delete=models.CASCADE, related_name='replies', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True,null=True, blank=True)
     def __str__(self):
+        if self.problem_item:
+            return f"{self.user} for {self.problem_item.title}"
+        else:
+            return f"Reply by {self.user}"
 
-        return f"{self.user} for {self.problem_item.title}"
+    def is_reply(self):
+        """Check if the rating is a reply to another rating."""
+        return self.parent is not None
+    
+    class Meta:
+
+        ordering = ("-created_at",)
+
 
 
 
@@ -118,10 +134,11 @@ class UserAnswer(models.Model):
     question = models.ForeignKey("challenges.QuizQuestion", on_delete=models.CASCADE, related_name="user_answers")
     selected_answer = models.ForeignKey("challenges.QuizQuestionAnswer", on_delete=models.CASCADE, related_name="selected_by_users")
     is_correct = models.BooleanField(default=False)
-
+    score = models.IntegerField(default=0,blank=True, null=True)
     def save(self, *args, **kwargs):
         # Automatically check if the selected answer is correct when saving.
         self.is_correct = self.selected_answer.is_correct
+        self.score = self.question.value if self.is_correct else 0
         super().save(*args, **kwargs)
 
     def __str__(self):

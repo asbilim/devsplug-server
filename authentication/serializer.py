@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User
+from .models import User,UserQuiz
 from challenges.serializer import ProblemSerializer
 
 
@@ -23,3 +23,11 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         
         model = User
         fields = "__all__"
+
+class UserQuizSerializer(serializers.ModelSerializer):
+
+    class Meta:
+
+        model = UserQuiz
+        fields = ['problem_quiz','is_complete','current_question']
+        

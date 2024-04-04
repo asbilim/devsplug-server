@@ -1,7 +1,10 @@
+import shutil
 from django.db import models
-from challenges.models import Problems
+from challenges.models import Problems,ProblemQuiz,ProblemItem,UserAnswer
 from django.contrib.auth.models import AbstractUser
-
+from django.utils.text import slugify
+import os
+from django.conf import settings
 class User(AbstractUser):
 
    
@@ -18,8 +21,8 @@ class User(AbstractUser):
 
         if self.score < 1001:
             self.title =  'novice'
-        elif self.score < 3001:
-            self.title =  'pro'
+        elif self.score < 1500:
+            self.title =  'programmer'
         elif self.score < 7001:
             self.title =  'plug'
         elif self.score < 15001:
@@ -29,3 +32,65 @@ class User(AbstractUser):
 
         super().save(*args,**kwargs)
 
+class UserQuiz(models.Model):
+
+    def user_directory_path(instance, filename):
+       
+        base_username = slugify(instance.user.username)
+        return f'problems/codes/{instance.problem_quiz.slug}/{base_username}/{filename}'
+    
+    user = models.ForeignKey("authentication.User", on_delete=models.CASCADE)
+    problem_quiz = models.ForeignKey(ProblemQuiz,on_delete=models.CASCADE,null=True,blank=True)
+    is_complete = models.BooleanField(default=False)
+    current_question = models.IntegerField(default=0)
+    total_score = models.IntegerField(default=0,null=True,blank=True)
+    is_noted = models.BooleanField(default=False,null=True,blank=True)
+    image_code = models.ImageField(upload_to=user_directory_path, blank=True,null=True)
+    is_full = models.BooleanField(default=False,null=True,blank=True)
+ 
+
+    def __str__(self):
+
+        return f"{self.user} for {self.problem_quiz.title}"
+    
+    def save(self,*args,**kwargs):
+        
+        answers_score = UserAnswer.objects.filter(user=self.user,problem_item__slug=self.problem_quiz.slug).filter(is_correct=True)
+        self.total_score = sum([answer.score for answer in answers_score if answer.is_correct])
+        if self.is_complete and not self.is_noted:
+            self.user.score += self.total_score
+            self.user.save()
+            self.is_noted = True
+
+        if self.image_code:
+            self.is_full = True
+
+        super().save(*args,**kwargs)
+
+    def delete(self, *args, **kwargs):
+        # Custom logic before the actual deletion
+
+        # Example: Reduce user score (adjust the logic based on how you want to reduce the score)
+        if self.user.score and self.total_score:
+            self.user.score -= self.total_score
+            self.user.save()
+
+        # Delete the folder associated with this instance
+        folder_path = os.path.join(settings.MEDIA_ROOT, f'problems/codes/{self.problem_quiz.slug}/{slugify(self.user.username)}')
+        if os.path.isdir(folder_path):
+            shutil.rmtree(folder_path)
+
+        # Call the superclass method to handle default deletion
+        super().delete(*args, **kwargs)
+
+class UserQuestionAttempt(models.Model):
+
+    user= models.ForeignKey("authentication.User", on_delete=models.CASCADE,null=True,blank=True)
+    problem = models.ForeignKey(ProblemItem,on_delete=models.CASCADE)
+    answers = models.ManyToManyField(UserAnswer)
+    current_question = models.IntegerField(default=1)
+    is_complete = models.BooleanField(default=False)
+
+    def __str__(self):
+
+        return f"{self.user} for {self.problem.title}"
