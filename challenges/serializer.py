@@ -1,7 +1,14 @@
 from rest_framework.serializers import ModelSerializer
 from .models import ProblemItem,Problems,Attachment
-from .models import ProblemQuiz, QuizQuestion, QuizQuestionAnswer
+from .models import ProblemQuiz, QuizQuestion, QuizQuestionAnswer,Ratings
+from rest_framework import serializers
+from authentication.models import User
 
+class UserSerializer(ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ['id','username','email','profile']
 class AttachmentSerializer(ModelSerializer):
 
     class Meta:
@@ -43,3 +50,18 @@ class ProblemQuizSerializer(ModelSerializer):
     class Meta:
         model = ProblemQuiz
         fields = ['id', 'title', 'slug', 'problem', 'questions']
+
+class RatingsSerializer(ModelSerializer):
+
+    replies = serializers.SerializerMethodField()
+    user = UserSerializer(read_only=True)
+    class Meta:
+        model = Ratings
+        fields = ['id','score','message','user','parent','replies',"created_at"]
+        extra_kwargs = {'user': {'required': False},'replies':{"read_only":True}}
+
+    def get_replies(self, obj):
+      
+        replies = Ratings.objects.filter(parent=obj)
+ 
+        return RatingsSerializer(replies, many=True, context=self.context).data
