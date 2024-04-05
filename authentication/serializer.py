@@ -10,6 +10,14 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'motivation', 'score', 'profile', 'problems', 'title']
 
+class LeaderSerializer(serializers.ModelSerializer):
+
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'score', 'profile',  'title']
+        extra_kwargs={'id':{'read_only':True},'username':{'read_only':True},'profile':{'read_only':True},'score':{'read_only':True},'title':{'read_only':True}}
+
 class UserCreateSerializer(serializers.ModelSerializer):
     
     class Meta:

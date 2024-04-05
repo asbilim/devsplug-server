@@ -18,19 +18,34 @@ class User(AbstractUser):
         return self.username
     
     def save(self, *args, **kwargs):
-
-        if self.score < 1001:
-            self.title =  'novice'
+        if self.score < 500:
+            self.title = 'Beginner'  
+        elif self.score < 1000:
+            self.title = 'Novice'  
         elif self.score < 1500:
-            self.title =  'programmer'
-        elif self.score < 7001:
-            self.title =  'plug'
-        elif self.score < 15001:
-            self.title =  'champion'
+            self.title = 'Developer'  
+        elif self.score < 2500:
+            self.title = 'Engineer' 
+        elif self.score < 4000:
+            self.title = 'Architect' 
+        elif self.score < 6000:
+            self.title = 'Hacker'  
+        elif self.score < 8500:
+            self.title = 'Master'  
+        elif self.score < 12000:
+            self.title = 'Expert'  
+        elif self.score < 16000:
+            self.title = 'Guru'  
+        elif self.score < 20000:
+            self.title = 'Champion'  
         else:
-            self.title =  'legend'
+            self.title = 'Legend'  
+        print(f"Setting title to: {self.title}")
+        super().save(*args, **kwargs)
 
-        super().save(*args,**kwargs)
+    class Meta:
+
+        ordering = ('-score','username')
 
 class UserQuiz(models.Model):
 

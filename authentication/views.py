@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.generics import CreateAPIView,UpdateAPIView
 from rest_framework.parsers import FormParser,MultiPartParser
 from rest_framework import permissions,status
-from .serializer import UserCreateSerializer,UserUpdateSerializer, UserQuizSerializer
+from .serializer import UserCreateSerializer,UserUpdateSerializer, UserQuizSerializer,LeaderSerializer
 from rest_framework.response import Response
 from .models import Problems,UserQuiz,UserQuestionAttempt
 from challenges.models import ProblemQuiz,UserAnswer,QuizQuestion,ProblemItem,QuizQuestionAnswer
@@ -16,6 +16,15 @@ from django.db.models import Exists, OuterRef
 from rest_framework.parsers import FileUploadParser,MultiPartParser,FormParser
 
 User = get_user_model()
+
+
+class LeaderView(viewsets.ReadOnlyModelViewSet):
+
+    serializer_class = LeaderSerializer
+
+    def get_queryset(self):
+        return User.objects.filter(is_active=True)
+    
 
 class UserViewSet(viewsets.ModelViewSet):
     
@@ -168,6 +177,20 @@ class UserViewSet(viewsets.ModelViewSet):
 
         return Response({"error": "Problem item not found."}, status=status.HTTP_404_NOT_FOUND)
     
+    @action(detail=False, methods=['post'], url_path='motivation-edit')
+    def set_motivation(self, request):
+
+      
+        
+        new_motivation = request.data.get('motivation')
+        print(new_motivation)
+        if not new_motivation:
+            return Response({"error": "new bio is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        request.user.motivation = new_motivation
+        request.user.save()
+       
+        return Response({"success": f"Your bio was modified successfully"}, status=status.HTTP_200_OK)
 
 
 class UserImageCodeView(viewsets.ModelViewSet):
@@ -175,6 +198,9 @@ class UserImageCodeView(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser,FormParser]
+    
+    def get_queryset(self):
+        return User.objects.filter(id=self.request.user.id)
 
     @action(detail=False, methods=['post'], url_path='submit-problem-code')
     def submit_image_code(self, request):
