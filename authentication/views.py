@@ -14,9 +14,8 @@ from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.db.models import Exists, OuterRef
 from rest_framework.parsers import FileUploadParser,MultiPartParser,FormParser
-
-User = get_user_model()
-
+from .models import User
+import json
 
 class LeaderView(viewsets.ReadOnlyModelViewSet):
 
@@ -24,6 +23,23 @@ class LeaderView(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return User.objects.filter(is_active=True)
+    
+    @action(detail=False, methods=['get'], url_path='by-username/(?P<username>[^/.]+)')
+    def by_username(self, request, username=None):
+        
+        objects_list = list(User.objects.order_by('-score'))
+        
+        try:
+            user = User.objects.get(username=username)
+            try:
+                position = objects_list.index(User.objects.get(pk=user.pk)) + 1  # Adding 1 to make it 1-indexed
+            except ValueError:
+                position = None  
+        except Exception as e:
+            return Response({"error": f"User {username} not found."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        profile = user.profile if user.profile else None
+        return Response(json.dumps({"username":user.username,"id":user.id,"motivation":user.motivation,"profile":profile.url,"title":user.title,"score":user.score,"position":position}), status=status.HTTP_200_OK)
     
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -191,6 +207,24 @@ class UserViewSet(viewsets.ModelViewSet):
         request.user.save()
        
         return Response({"success": f"Your bio was modified successfully"}, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated],url_path="change-password")
+    def change_password(self, request, *args, **kwargs):
+        user = self.request.user
+        current_password = request.data.get("current_password")
+        new_password = request.data.get("new_password")
+
+        
+        if not user.check_password(current_password):
+            return Response({"content": "Wrong password."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+        if not new_password:
+            return Response({"content": "New password required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+        return Response({"content": "password set successfully"}, status=status.HTTP_200_OK)
 
 
 class UserImageCodeView(viewsets.ModelViewSet):
@@ -230,6 +264,8 @@ class UserImageCodeView(viewsets.ModelViewSet):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"success": "your code was saved and waiting for review, you will receive a notification when it's validated"}, status=status.HTTP_200_OK)
+    
+    
 
 class UserUpdate(UpdateAPIView):
     
@@ -271,3 +307,4 @@ class UserCreate(CreateAPIView):
         except Exception as e:
             return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"User {username} already exists "})
         
+    

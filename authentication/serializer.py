@@ -15,8 +15,8 @@ class LeaderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'score', 'profile',  'title']
-        extra_kwargs={'id':{'read_only':True},'username':{'read_only':True},'profile':{'read_only':True},'score':{'read_only':True},'title':{'read_only':True}}
+        fields = ['id', 'username', 'score', 'profile',  'title','motivation']
+        extra_kwargs={'id':{'read_only':True},'username':{'read_only':True},'profile':{'read_only':True},'score':{'read_only':True},'title':{'read_only':True},'motivation':{'read_only':True}}
 
 class UserCreateSerializer(serializers.ModelSerializer):
     
@@ -30,7 +30,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         
         model = User
-        fields = "__all__"
+        fields = ["username","profile","email","password","first_name","last_name"]
 
 class UserQuizSerializer(serializers.ModelSerializer):
 
