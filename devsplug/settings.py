@@ -1,6 +1,7 @@
 from pathlib import Path
 from datetime import timedelta
 import os
+import dj_database_url
 
 
 
@@ -16,9 +17,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-(qnk(gvaj-8fptz_^n8x-qhlu@objir)x9sfwx+ov64@k3a$*5'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ["*"]
+
 
 
 
@@ -82,12 +84,25 @@ WSGI_APPLICATION = 'devsplug.wsgi.application'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': BASE_DIR / 'db.sqlite3',
+    # },
+    'default': dj_database_url.config(
+        default='postgresql://devsplug_owner:4aqZPVkc7HtD@ep-square-brook-a26fz8ah.eu-central-1.aws.neon.tech/devsplug?sslmode=require',
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+token_value="0AybNLpyf_ovzjacoId6xVEuIuEJZ6yqy97Ybnce"
+AWS_ACCESS_KEY_ID = "d16c249c4d2455b4d9c9263a01e0a81f"
+AWS_SECRET_ACCESS_KEY =  "db3779199dca280f16f748e1fb5994fe5eaffaa5757bd261baee419bf51083c3"
+AWS_S3_ENDPOINT_URL = "https://a47b4fa647b5c8c98f04f720c123e23d.r2.cloudflarestorage.com"
+AWS_STORAGE_BUCKET_NAME="devsplug"
+AWS_S3_SIGNATURE_VERSION = 's3v4'
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -127,6 +142,7 @@ STATIC_URL = 'static/'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfilespytho')
 
 
 # Default primary key field type
