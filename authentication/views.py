@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.generics import CreateAPIView,UpdateAPIView
 from rest_framework.parsers import FormParser,MultiPartParser
 from rest_framework import permissions,status
-from .serializer import UserCreateSerializer,UserUpdateSerializer, UserQuizSerializer
+from .serializer import UserCreateSerializer,UserUpdateSerializer, UserQuizSerializer,LeaderSerializer
 from rest_framework.response import Response
 from .models import Problems,UserQuiz,UserQuestionAttempt
 from challenges.models import ProblemQuiz,UserAnswer,QuizQuestion,ProblemItem,QuizQuestionAnswer
@@ -14,8 +14,34 @@ from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.db.models import Exists, OuterRef
 from rest_framework.parsers import FileUploadParser,MultiPartParser,FormParser
+from .models import User
+import json
 
-User = get_user_model()
+class LeaderView(viewsets.ReadOnlyModelViewSet):
+
+    serializer_class = LeaderSerializer
+
+    def get_queryset(self):
+        return User.objects.filter(is_active=True)
+    
+    @action(detail=False, methods=['get'], url_path='by-username/(?P<username>[^/.]+)')
+    def by_username(self, request, username=None):
+        
+        objects_list = list(User.objects.order_by('-score'))
+        
+        try:
+            user = User.objects.get(username=username)
+            try:
+                position = objects_list.index(User.objects.get(pk=user.pk)) + 1  # Adding 1 to make it 1-indexed
+            except ValueError:
+                position = None  
+        except Exception as e:
+            return Response({"error": f"User {username} not found."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        profile = user.profile if user.profile else None
+        link = profile.url if profile is not None else ""
+        return Response(json.dumps({"username":user.username,"id":user.id,"motivation":user.motivation,"profile":link,"title":user.title,"score":user.score,"position":position}), status=status.HTTP_200_OK)
+    
 
 class UserViewSet(viewsets.ModelViewSet):
     
@@ -168,6 +194,38 @@ class UserViewSet(viewsets.ModelViewSet):
 
         return Response({"error": "Problem item not found."}, status=status.HTTP_404_NOT_FOUND)
     
+    @action(detail=False, methods=['post'], url_path='motivation-edit')
+    def set_motivation(self, request):
+
+      
+        
+        new_motivation = request.data.get('motivation')
+        print(new_motivation)
+        if not new_motivation:
+            return Response({"error": "new bio is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        request.user.motivation = new_motivation
+        request.user.save()
+       
+        return Response({"success": f"Your bio was modified successfully"}, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated],url_path="change-password")
+    def change_password(self, request, *args, **kwargs):
+        user = self.request.user
+        current_password = request.data.get("current_password")
+        new_password = request.data.get("new_password")
+
+        
+        if not user.check_password(current_password):
+            return Response({"content": "Wrong password."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+        if not new_password:
+            return Response({"content": "New password required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+        return Response({"content": "password set successfully"}, status=status.HTTP_200_OK)
 
 
 class UserImageCodeView(viewsets.ModelViewSet):
@@ -175,6 +233,9 @@ class UserImageCodeView(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser,FormParser]
+    
+    def get_queryset(self):
+        return User.objects.filter(id=self.request.user.id)
 
     @action(detail=False, methods=['post'], url_path='submit-problem-code')
     def submit_image_code(self, request):
@@ -192,9 +253,9 @@ class UserImageCodeView(viewsets.ModelViewSet):
             return Response({"error": "No image uploaded."}, status=status.HTTP_400_BAD_REQUEST)
 
    
-        max_size = 2 * 1024 * 1024  
+        max_size = 5 * 1024 * 1024  
         if image_file.size > max_size:
-            return Response({"error": "Image too large. Maximum size allowed is 2MB."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Image too large. Maximum size allowed is 5MB."}, status=status.HTTP_400_BAD_REQUEST)
 
       
         try:
@@ -204,6 +265,8 @@ class UserImageCodeView(viewsets.ModelViewSet):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"success": "your code was saved and waiting for review, you will receive a notification when it's validated"}, status=status.HTTP_200_OK)
+    
+    
 
 class UserUpdate(UpdateAPIView):
     
@@ -245,3 +308,4 @@ class UserCreate(CreateAPIView):
         except Exception as e:
             return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"User {username} already exists "})
         
+    
