@@ -39,7 +39,8 @@ class LeaderView(viewsets.ReadOnlyModelViewSet):
             return Response({"error": f"User {username} not found."}, status=status.HTTP_400_BAD_REQUEST)
         
         profile = user.profile if user.profile else None
-        return Response(json.dumps({"username":user.username,"id":user.id,"motivation":user.motivation,"profile":profile.url,"title":user.title,"score":user.score,"position":position}), status=status.HTTP_200_OK)
+        link = profile.url if profile is not None else ""
+        return Response(json.dumps({"username":user.username,"id":user.id,"motivation":user.motivation,"profile":link,"title":user.title,"score":user.score,"position":position}), status=status.HTTP_200_OK)
     
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -252,9 +253,9 @@ class UserImageCodeView(viewsets.ModelViewSet):
             return Response({"error": "No image uploaded."}, status=status.HTTP_400_BAD_REQUEST)
 
    
-        max_size = 2 * 1024 * 1024  
+        max_size = 5 * 1024 * 1024  
         if image_file.size > max_size:
-            return Response({"error": "Image too large. Maximum size allowed is 2MB."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Image too large. Maximum size allowed is 5MB."}, status=status.HTTP_400_BAD_REQUEST)
 
       
         try:

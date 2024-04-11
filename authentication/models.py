@@ -13,6 +13,7 @@ class User(AbstractUser):
     profile = models.ImageField(null=True, blank=True)
     problems = models.ManyToManyField(Problems)
     title = models.CharField(max_length=255,blank=True,null=True)
+    email=models.EmailField(null=True, blank=True,unique=True)
     def __str__(self):
 
         return self.username
