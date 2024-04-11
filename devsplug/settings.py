@@ -50,6 +50,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -103,6 +104,8 @@ AWS_SECRET_ACCESS_KEY =  "db3779199dca280f16f748e1fb5994fe5eaffaa5757bd261baee41
 AWS_S3_ENDPOINT_URL = "https://a47b4fa647b5c8c98f04f720c123e23d.r2.cloudflarestorage.com"
 AWS_STORAGE_BUCKET_NAME="devsplug"
 AWS_S3_SIGNATURE_VERSION = 's3v4'
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
