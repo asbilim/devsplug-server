@@ -19,7 +19,7 @@ class Attachment(models.Model):
 class ProblemItem(models.Model):
 
     title = models.TextField(unique=True)
-    slug = models.SlugField(null=True, blank=True)
+    slug = models.SlugField(max_length=1500,null=True, blank=True)
     tags = TaggableManager()
     content = RichTextUploadingField(null=True, blank=True)
     points = models.IntegerField(default=50)
@@ -45,7 +45,7 @@ class ProblemItem(models.Model):
 class ProblemQuiz(models.Model):
 
     title = models.TextField(unique=True,null=True)
-    slug = models.SlugField(null=True, blank=True)
+    slug = models.SlugField(max_length=1500,null=True, blank=True)
     problem = models.ForeignKey(ProblemItem, related_name="quiz",on_delete=models.CASCADE)
 
     def __str__(self):
@@ -61,7 +61,7 @@ class ProblemQuiz(models.Model):
 class QuizQuestion(models.Model):
 
     title = models.TextField(unique=True)
-    slug = models.SlugField(null=True, blank=True)
+    slug = models.SlugField(max_length=1500,null=True, blank=True)
     value = models.IntegerField()
     problem_quiz = models.ForeignKey(ProblemQuiz,related_name="questions",on_delete=models.CASCADE)
 
@@ -89,7 +89,7 @@ class QuizQuestionAnswer(models.Model):
 class Problems(models.Model):
 
     title = models.TextField(unique=True)
-    slug = models.SlugField(null=True, blank=True)
+    slug = models.SlugField(max_length=1500,null=True, blank=True)
     tags = TaggableManager()
     content = RichTextUploadingField(null=True, blank=True)
     problems = models.ManyToManyField(ProblemItem)
