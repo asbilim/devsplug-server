@@ -18,7 +18,7 @@ class Attachment(models.Model):
 
 class ProblemItem(models.Model):
 
-    title = models.CharField(max_length=250,unique=True)
+    title = models.CharField(max_length=1000,unique=True)
     slug = models.SlugField(null=True, blank=True)
     tags = TaggableManager()
     content = RichTextUploadingField(null=True, blank=True)
@@ -35,6 +35,9 @@ class ProblemItem(models.Model):
         self.slug = slugify(self.title)
         super().save(*args, **kwargs)
     
+    class Meta:
+
+        ordering = ("points",)
 
     
 
@@ -85,7 +88,7 @@ class QuizQuestionAnswer(models.Model):
 
 class Problems(models.Model):
 
-    title = models.CharField(max_length=250,unique=True)
+    title = models.CharField(max_length=1000,unique=True)
     slug = models.SlugField(null=True, blank=True)
     tags = TaggableManager()
     content = RichTextUploadingField(null=True, blank=True)

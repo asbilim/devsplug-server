@@ -81,6 +81,22 @@ TEMPLATES = [
 WSGI_APPLICATION = 'devsplug.wsgi.application'
 
 
+# if not DEBUG:
+#     LOGGING = {                                                                                                                 
+#         'version': 1,
+#         'disable_existing_loggers': False,
+#         'handlers': {
+#             'logfile': {
+#                 'class': 'logging.FileHandler',
+#                 'filename': 'server.log',
+#             },
+#         },
+#         'loggers': {
+#             'django': {
+#                 'handlers': ['logfile'],
+#             },
+#         },
+#     }
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
