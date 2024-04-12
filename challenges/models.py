@@ -6,7 +6,7 @@ from ckeditor_uploader.fields import RichTextUploadingField
 
 class Attachment(models.Model):
 
-    title = models.CharField(max_length=250,unique=True)
+    title = models.TextField(unique=True)
     file = models.FileField(upload_to="attachments/")
 
 
@@ -18,7 +18,7 @@ class Attachment(models.Model):
 
 class ProblemItem(models.Model):
 
-    title = models.CharField(max_length=1000,unique=True)
+    title = models.TextField(unique=True)
     slug = models.SlugField(null=True, blank=True)
     tags = TaggableManager()
     content = RichTextUploadingField(null=True, blank=True)
@@ -44,7 +44,7 @@ class ProblemItem(models.Model):
 
 class ProblemQuiz(models.Model):
 
-    title = models.CharField(max_length=250,unique=True,null=True)
+    title = models.TextField(unique=True,null=True)
     slug = models.SlugField(null=True, blank=True)
     problem = models.ForeignKey(ProblemItem, related_name="quiz",on_delete=models.CASCADE)
 
@@ -60,7 +60,7 @@ class ProblemQuiz(models.Model):
 
 class QuizQuestion(models.Model):
 
-    title = models.CharField(max_length=250,unique=True)
+    title = models.TextField(unique=True)
     slug = models.SlugField(null=True, blank=True)
     value = models.IntegerField()
     problem_quiz = models.ForeignKey(ProblemQuiz,related_name="questions",on_delete=models.CASCADE)
@@ -88,7 +88,7 @@ class QuizQuestionAnswer(models.Model):
 
 class Problems(models.Model):
 
-    title = models.CharField(max_length=1000,unique=True)
+    title = models.TextField(unique=True)
     slug = models.SlugField(null=True, blank=True)
     tags = TaggableManager()
     content = RichTextUploadingField(null=True, blank=True)
