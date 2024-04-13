@@ -95,3 +95,16 @@ C:\Users\bilim\Documents\backend\django\pro\devsplug\challenges\models.py change
 Watching for file changes with StatReloader
 C:\Users\bilim\Documents\backend\django\pro\devsplug\challenges\models.py changed, reloading.
 Watching for file changes with StatReloader
+"POST /admin/challenges/quizquestion/1/change/ HTTP/1.1" 302 0
+"GET /admin/challenges/quizquestion/ HTTP/1.1" 200 21536
+"GET /admin/jsi18n/ HTTP/1.1" 200 3342
+C:\Users\bilim\Documents\backend\django\pro\devsplug\challenges\models.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\bilim\Documents\backend\django\pro\devsplug\challenges\models.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\bilim\Documents\backend\django\pro\devsplug\challenges\models.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\bilim\Documents\backend\django\pro\devsplug\challenges\models.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\bilim\Documents\backend\django\pro\devsplug\challenges\models.py changed, reloading.
+Watching for file changes with StatReloader
