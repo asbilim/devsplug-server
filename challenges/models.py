@@ -24,6 +24,8 @@ class ProblemItem(models.Model):
     content = RichTextUploadingField(null=True, blank=True)
     points = models.IntegerField(default=50)
     level = models.CharField(choices=(("easy","easy"),("medium","medium"),("hard","hard")),max_length=255)
+    description = models.TextField(null=True,blank=True)
+    image=models.ImageField(null=True, blank=True,upload_to="challenges-image/")
     attachments = models.ManyToManyField(Attachment,null=True,blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
