@@ -5,6 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from django.utils.text import slugify
 import os
 from django.conf import settings
+import random
 class User(AbstractUser):
 
    
@@ -110,3 +111,22 @@ class UserQuestionAttempt(models.Model):
     def __str__(self):
 
         return f"{self.user} for {self.problem.title}"
+    
+
+class VerificationCode(models.Model):
+
+    code = models.CharField(max_length=255,null=True, blank=True)
+    user = models.ForeignKey("authentication.User", on_delete=models.CASCADE,null=True,blank=True)
+    created_at = models.DateField(auto_now_add=True)
+    is_used = models.BooleanField(default=False)
+
+    def __str__(self):
+
+        return f"otp code for {self.user}"
+    
+    def generate_code(self):
+
+        code = "".join([str(random.randint(0,9)) for i in range(9)])
+        self.code = code
+        self.save()
+        return code

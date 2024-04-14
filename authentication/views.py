@@ -8,7 +8,7 @@ from rest_framework.parsers import FormParser,MultiPartParser
 from rest_framework import permissions,status
 from .serializer import UserCreateSerializer,UserUpdateSerializer, UserQuizSerializer,LeaderSerializer
 from rest_framework.response import Response
-from .models import Problems,UserQuiz,UserQuestionAttempt
+from .models import Problems,UserQuiz,UserQuestionAttempt,VerificationCode
 from challenges.models import ProblemQuiz,UserAnswer,QuizQuestion,ProblemItem,QuizQuestionAnswer
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
@@ -16,6 +16,7 @@ from django.db.models import Exists, OuterRef
 from rest_framework.parsers import FileUploadParser,MultiPartParser,FormParser
 from .models import User
 import json
+from django.core.mail import send_mail
 
 class LeaderView(viewsets.ReadOnlyModelViewSet):
 
@@ -302,10 +303,39 @@ class UserCreate(CreateAPIView):
         try:
             user = get_user_model().objects.create(username=username, password=password,email=email)
             user.set_password(password)
-            user.is_active = True
+            user.is_active = False
+            verification = VerificationCode.objects.create(user=user)
+            otp_code = verification.generate_code()
+            try:
+                send_mail("Devsplug verification code",f"Hello {username} this is your Devsplug verification code : {otp_code}","noreply@devsplug.com",[email],fail_silently=False)
+            except Exception as e:
+                return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"could not send email to user","exists":False})
+
             user.save()
-            return Response(status=status.HTTP_201_CREATED,data={"status": "success","content":"User created"})
+            return Response(status=status.HTTP_201_CREATED,data={"status": "success","content":"User created, verify your email to activate your account"})
         except Exception as e:
-            return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"User {username} already exists "})
+            print(e)
+            return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"User {username} already exists ","exists":True})
         
     
+class UserActivate(CreateAPIView):
+    
+    queryset = get_user_model().objects.all()
+    serializer_class = UserCreateSerializer
+    permission_classes = []
+
+    def create(self, request, *args, **kwargs):
+        
+        otp_code = request.data.get("otp")
+        
+        try:
+            verification = VerificationCode.objects.get(code=otp_code)
+            if verification:
+                verification.user.is_active = True
+                verification.user.save()
+                verification.delete()
+                return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "success","content":f"account activated successfully","exists":False})
+            return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"the code is incorrect ","exists":False})
+        except Exception as e:
+            print(e)
+            return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"the code is incorrect ","exists":False})
