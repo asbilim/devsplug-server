@@ -44,7 +44,9 @@ INSTALLED_APPS = [
     'taggit',
     'ckeditor',
     'ckeditor_uploader',
-    'drf_yasg'
+    'drf_yasg',
+    "django_crontab"
+    
 
 ]
 
@@ -79,6 +81,12 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'devsplug.wsgi.application'
+
+
+CRONJOBS = [
+    ("*/1 * * * *", "authentication.jobs.increase_score")
+]
+
 
 
 if not DEBUG:
@@ -251,3 +259,16 @@ THUMBNAIL_PROCESSORS = (
 #end django filer
 
 AUTH_USER_MODEL = "authentication.User"
+
+
+#smtp configuration django
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'wednesday.mxrouting.net'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'noreply@devsplug.com'
+EMAIL_HOST_PASSWORD = '9h2kSts9msmbGpWCcNTG'
+
+
+############################################################
