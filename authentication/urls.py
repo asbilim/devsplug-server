@@ -5,7 +5,7 @@ from rest_framework_simplejwt.views import (
 )
 from .views import UserViewSet
 from rest_framework.routers import SimpleRouter
-from .views import UserViewSet,UserUpdate,UserCreate,UserImageCodeView,LeaderView,UserActivate
+from .views import UserViewSet,UserUpdate,UserCreate,UserImageCodeView,LeaderView,UserActivate,UserResetApply,UserResetVerify,UserResetChange,UserClaimCode
 
 router = SimpleRouter()
 
@@ -20,4 +20,9 @@ urlpatterns = [
     path('api/user/create',UserCreate.as_view(),name="user-create"),
     path('api/user/activate',UserActivate.as_view(),name="user-activate"),
     path('api/user/update/<int:pk>',UserUpdate.as_view(),name="user-update"),
+    path('api/user/password/apply',UserResetApply.as_view(),name="user-password-apply"),
+    path('api/user/password/verify',UserResetVerify.as_view(),name="user-password-verify"),
+    path('api/user/password/change',UserResetChange.as_view(),name="user-password-change"),
+    path('api/user/activate/code/claim',UserClaimCode.as_view(),name="user-code-claim"),
+
 ]

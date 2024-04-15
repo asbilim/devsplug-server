@@ -130,3 +130,21 @@ class VerificationCode(models.Model):
         self.code = code
         self.save()
         return code
+    
+class ResetCode(models.Model):
+
+    code = models.CharField(max_length=255,null=True, blank=True)
+    user = models.ForeignKey("authentication.User", on_delete=models.CASCADE,null=True,blank=True)
+    can_reset = models.BooleanField(default=False)
+
+
+    def generate_code(self):
+
+        code = "".join([str(random.randint(0,9)) for i in range(9)])
+        self.code = code
+        self.save()
+        return code
+    
+    def __str__(self):
+
+        return f"reset code for {self.user}"
