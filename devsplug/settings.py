@@ -109,15 +109,15 @@ if not DEBUG:
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 DATABASES = {
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': BASE_DIR / 'db.sqlite3',
-    # },
-    'default': dj_database_url.config(
-        default='postgresql://devsplug_owner:4aqZPVkc7HtD@ep-square-brook-a26fz8ah.eu-central-1.aws.neon.tech/devsplug?sslmode=require',
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    },
+    # 'default': dj_database_url.config(
+    #     default='postgresql://devsplug_owner:4aqZPVkc7HtD@ep-square-brook-a26fz8ah.eu-central-1.aws.neon.tech/devsplug?sslmode=require',
+    #     conn_max_age=600,
+    #     conn_health_checks=True,
+    # )
 }
 
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
