@@ -2,7 +2,12 @@ from django.db import models
 from django.utils.text import slugify
 from taggit.managers import TaggableManager
 from ckeditor_uploader.fields import RichTextUploadingField
+from django.db.models import F
+from django.core.mail import send_mail
+from string import ascii_letters
+import random
 
+generate_string = lambda taille: "".join([ascii_letters[random.randint(0,len(ascii_letters)-1)] for i in range(taille)])
 
 class Attachment(models.Model):
 
@@ -169,3 +174,127 @@ class ProblemItemSubmission(models.Model):
             self.user.score+=20
 
         super().save(*args, **kwargs)
+
+
+class ProblemSolutionItem(models.Model):
+
+    code = models.TextField()
+    name = models.CharField(max_length=250)
+    created_at = models.DateTimeField(auto_now_add=True)
+    description = models.TextField(null=True, blank=True)
+    def __str__(self):
+
+        return self.name
+    
+class ProblemSolution(models.Model):
+
+    user = models.ForeignKey("authentication.User",on_delete=models.CASCADE,null=True,blank=True)
+    code = models.TextField()
+    name = models.CharField(max_length=250)
+    unique_code = models.CharField(null=True,blank=True,max_length=255)
+    parts = models.ManyToManyField(ProblemSolutionItem)
+    style = models.CharField(max_length=255)
+    language = models.CharField(max_length=255)
+    scale = models.CharField(max_length=255)
+    is_valid = models.BooleanField(default=True)
+    problem_item = models.ForeignKey(ProblemItem,on_delete=models.CASCADE,blank=True,null=True)
+    description = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(null=True, blank=True,auto_now_add=True)
+    
+
+    def __str__(self):
+
+        return f'solution for {self.problem_item.title} by {self.user.username}.'
+    
+    def save(self,*args,**kwargs):
+
+        if self._state.adding:
+            while True:
+                code = generate_string(16)
+                if not ProblemSolution.objects.filter(unique_code=code).exists():
+                    self.unique_code = code
+                    break
+            # send_mail("Devsplug challenge submission",f"hello admin , new submission for {self.problem_item.title} by","noreply@devsplug.com",["admin@devsplug.com"])
+
+        super().save(*args,**kwargs)
+
+    
+    class Meta:
+
+        ordering = ("-pk",)
+        unique_together = ('user','problem_item')  
+        
+class Comments(models.Model):
+
+    user = models.ForeignKey("authentication.User",on_delete=models.CASCADE)
+    problem_solution = models.ForeignKey(ProblemSolution,on_delete=models.CASCADE,related_name="comments")
+    created_at = models.DateTimeField(auto_now_add=True)
+    content = models.TextField()
+    parent = models.ForeignKey("self", on_delete=models.CASCADE, related_name='replies', null=True, blank=True)
+
+
+    def __str__(self):
+
+        return f"{self.user.username} said {self.content[:100]}..."
+    
+class Likes(models.Model):
+    user = models.ForeignKey("authentication.User", on_delete=models.CASCADE)
+    problem_solution = models.ForeignKey(ProblemSolution, on_delete=models.CASCADE, related_name="likes")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} liked {self.problem_solution}"
+
+    def toggle_like(self):
+        """Toggle a like for a problem solution and adjust user score accordingly."""
+        if self.pk: 
+            self.problem_solution.user.score = F('score') - 10  
+            self.problem_solution.user.save(update_fields=['score'])
+            self.delete()  
+        else:
+            self.save()  
+            self.problem_solution.user.score +=10 
+            self.problem_solution.user.save(update_fields=['score'])
+
+    def save(self, *args, **kwargs):
+        """Override save method to handle score update when like is initially added."""
+        if not self.pk:  
+            super().save(*args, **kwargs)  
+            self.problem_solution.user.score +=  10  
+            self.problem_solution.user.save(update_fields=['score'])
+        else:
+            super().save(*args, **kwargs)
+    
+class Dislikes(models.Model):
+
+    user = models.ForeignKey("authentication.User",on_delete=models.CASCADE)
+    problem_solution = models.ForeignKey(ProblemSolution,on_delete=models.CASCADE,related_name="dislikes")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+
+        return f"{self.user.username} disliked {self.problem_solution}"
+    
+
+class ReportSolution(models.Model):
+    user = models.ForeignKey("authentication.User", on_delete=models.CASCADE)
+    problem_solution = models.ForeignKey(ProblemSolution, on_delete=models.CASCADE, related_name="reports")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'problem_solution')  
+
+    def save(self, *args, **kwargs):
+        """Override the save method to send an email notification upon report creation."""
+        is_new = self._state.adding
+        super().save(*args, **kwargs) 
+        if is_new:  
+            send_mail(
+                subject='New Problem Solution Report',
+                message=f'User {self.user.username} has reported a solution with ID {self.problem_solution.id}.',
+                from_email="noreply@devsplug.com",
+                recipient_list=["admin@devsplug.com"],
+                fail_silently=False,
+            )
+
+    
