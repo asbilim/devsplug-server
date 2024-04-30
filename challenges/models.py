@@ -44,7 +44,7 @@ class ProblemItem(models.Model):
     
     class Meta:
 
-        ordering = ("points",)
+        ordering = ("-created_at",)
 
     
 
@@ -222,7 +222,7 @@ class ProblemSolution(models.Model):
     class Meta:
 
         ordering = ("-pk",)
-        unique_together = ('user','problem_item')  
+        unique_together = ('user','problem_item','language')  
         
 class Comments(models.Model):
 
@@ -260,7 +260,7 @@ class Likes(models.Model):
         """Override save method to handle score update when like is initially added."""
         if not self.pk:  
             super().save(*args, **kwargs)  
-            self.problem_solution.user.score +=  10  
+            self.problem_solution.user.score +=  self.problem_solution.problem_item.points
             self.problem_solution.user.save(update_fields=['score'])
         else:
             super().save(*args, **kwargs)
