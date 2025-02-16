@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import User,UserQuiz
+from django.contrib.auth import get_user_model
+from .models import User, Follow
 from challenges.serializer import ProblemSerializer
 
 
@@ -11,12 +12,10 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'motivation', 'score', 'profile', 'problems', 'title']
 
 class LeaderSerializer(serializers.ModelSerializer):
-
-
     class Meta:
         model = User
-        fields = ['id', 'username', 'score', 'profile',  'title','motivation']
-        extra_kwargs={'id':{'read_only':True},'username':{'read_only':True},'profile':{'read_only':True},'score':{'read_only':True},'title':{'read_only':True},'motivation':{'read_only':True}}
+        fields = ['id', 'username', 'score', 'profile', 'title', 'motivation']
+        read_only_fields = ['id', 'username', 'profile', 'score', 'title', 'motivation']
 
 class UserCreateSerializer(serializers.ModelSerializer):
     
@@ -32,10 +31,9 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         model = User
         fields = ["username","profile","email","password","first_name","last_name"]
 
-class UserQuizSerializer(serializers.ModelSerializer):
-
+class FollowSerializer(serializers.ModelSerializer):
     class Meta:
-
-        model = UserQuiz
-        fields = ['problem_quiz','is_complete','current_question']
+        model = Follow
+        fields = ["id", "follower", "following", "created_at"]
+        read_only_fields = ["follower"]
         

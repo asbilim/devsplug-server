@@ -6,10 +6,9 @@ from rest_framework.views import APIView
 from rest_framework.generics import CreateAPIView,UpdateAPIView
 from rest_framework.parsers import FormParser,MultiPartParser
 from rest_framework import permissions,status
-from .serializer import UserCreateSerializer,UserUpdateSerializer, UserQuizSerializer,LeaderSerializer
+from .serializer import UserCreateSerializer,UserUpdateSerializer, LeaderSerializer
 from rest_framework.response import Response
-from .models import Problems,UserQuiz,UserQuestionAttempt,VerificationCode,ResetCode
-from challenges.models import ProblemQuiz,UserAnswer,QuizQuestion,ProblemItem,QuizQuestionAnswer
+from .models import VerificationCode, ResetCode, Follow
 from rest_framework.decorators import action
 from django.shortcuts import get_object_or_404
 from django.db.models import Exists, OuterRef
@@ -17,6 +16,7 @@ from rest_framework.parsers import FileUploadParser,MultiPartParser,FormParser
 from .models import User
 import json
 from django.core.mail import send_mail
+from .serializer import FollowSerializer
 
 class LeaderView(viewsets.ReadOnlyModelViewSet):
 
@@ -45,15 +45,22 @@ class LeaderView(viewsets.ReadOnlyModelViewSet):
     
 
 class UserViewSet(viewsets.ModelViewSet):
-    
+    queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
-  
-    def get_queryset(self):
-        
-        user = self.request.user
-        return User.objects.filter(id=user.id)
-    
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    lookup_field = 'username'
+
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def leaderboard(self, request):
+        top_users = User.objects.order_by('-score')[:10]
+        serializer = self.get_serializer(top_users, many=True)
+        return Response(serializer.data)
+
     @action(detail=False, methods=['post'], url_path='add-problem')
     def add_problem(self, request, pk=None):
         
@@ -68,132 +75,6 @@ class UserViewSet(viewsets.ModelViewSet):
         else:
             request.user.problems.add(problem)
             return Response({"success": f"Problem {problem_id} added to user."}, status=status.HTTP_200_OK)
-    
-    @action(detail=False, methods=['post'], url_path='add-quiz')
-    def add_quiz(self, request):
-        problem_item_slug = request.data.get("problem_slug")
-        if not problem_item_slug:
-            return Response({"error": "Problem slug is required."}, status=status.HTTP_400_BAD_REQUEST)
-
-        problem_quiz = get_object_or_404(ProblemQuiz, slug=problem_item_slug)
-        user_quiz, created = UserQuiz.objects.get_or_create(user=request.user,problem_quiz=problem_quiz)
-        
-        if not created:
-            return Response({"error": f"Quiz {problem_item_slug} already added to user."}, status=status.HTTP_409_CONFLICT)
-        else:
-            user_quiz.save()
-            return Response({"success": f"Quiz {problem_item_slug} added to user."}, status=status.HTTP_200_OK)
-        
-    @action(detail=False, methods=['post'], url_path='submit-answer')
-    def submit_answer(self, request):
-        problem_item_slug = request.data.get("problem_slug")
-        question_id = request.data.get("question_id")
-        selected_answer_id = request.data.get("selected_answer_id")
-
-        if not problem_item_slug or not question_id or not selected_answer_id:
-            return Response({"error": "problem_slug, question_id, and selected_answer_id parameters are required."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-       
-            problem_quiz = ProblemQuiz.objects.get(slug=problem_item_slug)
-            selected_answer = QuizQuestionAnswer.objects.get(id=selected_answer_id, quizquestion__id=question_id)
-            quiz_question = QuizQuestion.objects.get(id=question_id, problem_quiz=problem_quiz)
-        except Exception as e:
-            return Response({"error": f"Something went wrong: {str(e)}"}, status=status.HTTP_404_NOT_FOUND)
-
-        user_quiz, _ = UserQuiz.objects.get_or_create(user=request.user, problem_quiz=problem_quiz)
-        
-        
-        if UserAnswer.objects.filter(user=request.user, question=quiz_question).exists():
-            return Response({"success": "Answer for this question already submitted."}, status=status.HTTP_409_CONFLICT)
-        
-      
-        UserAnswer.objects.create(user=request.user, problem_item=quiz_question.problem_quiz.problem, selected_answer=selected_answer, question=quiz_question)
-
-        
-        all_questions = quiz_question.problem_quiz.questions.all().order_by('id')
-        current_index = list(all_questions).index(quiz_question)
-        if current_index + 1 < len(all_questions):
-            user_quiz.current_question = current_index + 1
-            user_quiz.save()
-            next_question = all_questions[current_index + 1]
-            return Response({"success": "Your answer was saved.", "next_question_id": next_question.id}, status=status.HTTP_200_OK)
-        else:
-            # If there are no more questions
-            user_quiz.is_complete = True
-            user_quiz.save()
-            return Response({"success": "Quiz completed."}, status=status.HTTP_200_OK)
-
-
-
-    @action(detail=False, methods=['post'], url_path='questions-status')
-    def get_questions(self, request):
-        problem_item_slug = request.data.get("problem_slug")
-        user = request.user
-        
-        try:
-            user_quiz_status = UserQuiz.objects.get(user=user,problem_quiz__slug=problem_item_slug)
-        except Exception as e:
-            print(e)
-            user_quiz_status = False
-
-        if user_quiz_status:
-            is_full = user_quiz_status.is_full
-        else:
-            is_full = False
-
-        if not problem_item_slug:
-            return Response({"error": "problem_slug parameter is required."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-
-            problem_item = ProblemItem.objects.get(slug=problem_item_slug)
-       
-            problem_quiz = ProblemQuiz.objects.filter(problem=problem_item)
-
-            questions_data = []
-            for quiz in problem_quiz:
-                questions = QuizQuestion.objects.filter(problem_quiz=quiz)
-                for question in questions:
-                    submitted_answer_exists = UserAnswer.objects.filter(user=user, question=question).exists()
-                    
-                 
-                    answers_data = []
-                    answers = QuizQuestionAnswer.objects.filter(quizquestion=question)
-                    for answer in answers:
-                        answers_data.append({
-                            "id": answer.id,
-                            "content": answer.content,
-                            "is_correct": answer.is_correct  
-                        })
-                    
-                    
-                    questions_data.append({
-                        "id": question.id,
-                        "title": question.title,
-                        "is_submitted": submitted_answer_exists,
-                        "is_full":is_full,
-                        "answers": answers_data  
-                    })
-
-            return Response(questions_data, status=status.HTTP_200_OK)
-        except ProblemItem.DoesNotExist:
-            return Response({"error": "Problem item not found."}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"error": f"Something went wrong. {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-    
-    @action(detail=False, methods=['post'], url_path='problem-score')
-    def get_user_score(self, request):
-        problem_item_slug = request.data.get("problem_slug")
-
-        user_quiz = UserQuiz.objects.filter(user=request.user,problem_quiz__slug=problem_item_slug).first()
-
-        if user_quiz:
-
-            return Response({"score":user_quiz.total_score},status=status.HTTP_200_OK)
-
-        return Response({"error": "Problem item not found."}, status=status.HTTP_404_NOT_FOUND)
     
     @action(detail=False, methods=['post'], url_path='motivation-edit')
     def set_motivation(self, request):
@@ -228,46 +109,6 @@ class UserViewSet(viewsets.ModelViewSet):
         user.save()
         return Response({"content": "password set successfully"}, status=status.HTTP_200_OK)
 
-
-class UserImageCodeView(viewsets.ModelViewSet):
-
-    serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser,FormParser]
-    
-    def get_queryset(self):
-        return User.objects.filter(id=self.request.user.id)
-
-    @action(detail=False, methods=['post'], url_path='submit-problem-code')
-    def submit_image_code(self, request):
-        problem_item_slug = request.data.get("problem_slug")
-        user_quiz = UserQuiz.objects.filter(user=request.user, problem_quiz__slug=problem_item_slug).first()
-
-        if not user_quiz:
-            return Response({"error": "Problem item not found."}, status=status.HTTP_404_NOT_FOUND)
-        
-        if user_quiz.image_code:
-            return Response({"error": "You cannot submit an image twice."}, status=status.HTTP_200_OK)
-       
-        image_file = request.FILES.get('image_code', None)
-        if not image_file:
-            return Response({"error": "No image uploaded."}, status=status.HTTP_400_BAD_REQUEST)
-
-   
-        max_size = 5 * 1024 * 1024  
-        if image_file.size > max_size:
-            return Response({"error": "Image too large. Maximum size allowed is 5MB."}, status=status.HTTP_400_BAD_REQUEST)
-
-      
-        try:
-            user_quiz.image_code = image_file
-            user_quiz.save()
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response({"success": "your code was saved and waiting for review, you will receive a notification when it's validated"}, status=status.HTTP_200_OK)
-    
-    
 
 class UserUpdate(UpdateAPIView):
     
@@ -448,3 +289,13 @@ class UserResetChange(CreateAPIView):
             return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "success","content":f"success, password changed successfully","exists":False})
         
         return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"the code is incorrect ","exists":False})
+
+class FollowViewSet(viewsets.ModelViewSet):
+    serializer_class = FollowSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Follow.objects.filter(follower=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(follower=self.request.user)

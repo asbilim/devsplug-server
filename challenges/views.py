@@ -1,11 +1,36 @@
-from .serializer import ProblemItemSerializer,ProblemSerializer,ProblemQuizSerializer,QuizQuestionSerializer,QuizQuestionAnswerSerializer,RatingsSerializer,ProblemSolutionSerializer,CommentSerializer,LikeSerializer,DisLikeSerializer,ReportSolutionSerializer
-from rest_framework.viewsets import ModelViewSet,ReadOnlyModelViewSet
-from .models import Comments, Dislikes, Likes, ProblemSolution, Problems,ProblemItem,QuizQuestionAnswer,QuizQuestion,ProblemQuiz, Ratings, ReportSolution
-from rest_framework import permissions
-from django.shortcuts import get_object_or_404
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+from rest_framework import permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import status
+from django.shortcuts import get_object_or_404
+from django.db.models import Q
+
+from .models import (
+    Problems,
+    ProblemItem,
+    Ratings,
+    ProblemSolution,
+    Comment,
+    Like,
+    Dislike,
+    Challenge,
+    Solution,
+    ReportSolution
+)
+
+from .serializer import (
+    ProblemSerializer,
+    ProblemItemSerializer,
+    RatingsSerializer,
+    ProblemSolutionSerializer,
+    CommentSerializer,
+    LikeSerializer,
+    DisLikeSerializer,
+    ReportSolutionSerializer,
+    ChallengeSerializer,
+    SolutionSerializer
+)
+
 class ProblemsViewset(ReadOnlyModelViewSet):
 
     serializer_class = ProblemSerializer
@@ -15,39 +40,6 @@ class ProblemItemViewset(ReadOnlyModelViewSet):
 
     serializer_class = ProblemItemSerializer
     queryset = ProblemItem.objects.all()
-    
-    @action(detail=False, methods=['post'], url_path='details')
-    def get_by_slug(self, request, slug=None):
-        slug = request.data.get('slug')
-        queryset = self.get_queryset()
-        problem_item = get_object_or_404(queryset, slug=slug)
-        serializer = self.get_serializer(problem_item)
-        return Response(serializer.data)
-    
-class QuizQuestionView(ReadOnlyModelViewSet):
-
-    serializer_class = QuizQuestionSerializer
-    queryset = QuizQuestion.objects.all()
-
-class ProblemQuizView(ReadOnlyModelViewSet):
-
-    serializer_class = ProblemQuizSerializer
-    queryset = ProblemQuiz.objects.all()
-    
-
-    @action(detail=False, methods=['post'], url_path='details')
-    def get_by_slug(self, request, slug=None):
-        slug = request.data.get('slug')
-        queryset = self.get_queryset()
-        problem_item = get_object_or_404(queryset, slug=slug)
-        serializer = self.get_serializer(problem_item)
-        return Response(serializer.data)
-
-class QuizQuestionAnswerView(ModelViewSet):
-
-    serializer_class = QuizQuestionAnswerSerializer
-    queryset = QuizQuestionAnswer.objects.all()
-
     
 class RatingViewset(ModelViewSet):
 
@@ -109,7 +101,7 @@ class ProblemSolutionView(ModelViewSet):
 class CommentView(ModelViewSet):
 
     serializer_class = CommentSerializer
-    queryset = Comments.objects.filter(parent__isnull=True)
+    queryset = Comment.objects.filter(parent__isnull=True)
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
 
@@ -121,7 +113,7 @@ class CommentView(ModelViewSet):
             return Response(status=status.HTTP_400_BAD_REQUEST,data={"content":"Please provide a valid slug","status":"error"})
 
         try:
-            likes =  Comments.objects.filter(problem_solution__unique_code=uid)
+            likes =  Comment.objects.filter(problem_solution__unique_code=uid)
             amount = len(likes) if len(likes) <=9 else "9+"
             serializer = self.get_serializer(likes, many=True)
          
@@ -155,7 +147,7 @@ class CommentView(ModelViewSet):
 class LikeView(ModelViewSet):
 
     serializer_class = LikeSerializer
-    queryset = Likes.objects.all()
+    queryset = Like.objects.all()
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
 
@@ -166,15 +158,15 @@ class LikeView(ModelViewSet):
         try:
             problem_solution = ProblemSolution.objects.filter(unique_code=unique_code).get()
             try:
-                like = Likes.objects.filter(problem_solution=problem_solution,user=user).get()
+                like = Like.objects.filter(problem_solution=problem_solution,user=user).get()
                 print(like)
                 like.delete()
                 problem_solution.user.score-=10
                 problem_solution.user.save()
                 return Response(status=status.HTTP_200_OK,data={"status":"success","content":"like was removed successfully"})
 
-            except Likes.DoesNotExist:
-                Likes.objects.create(user=user,problem_solution=problem_solution)
+            except Like.DoesNotExist:
+                Like.objects.create(user=user,problem_solution=problem_solution)
                 return Response(status=status.HTTP_200_OK,data={"status":"success","content":"like was added successfully"})
             
             except Exception as e:
@@ -200,7 +192,7 @@ class LikeView(ModelViewSet):
             return Response(status=status.HTTP_400_BAD_REQUEST,data={"content":"Please provide a valid slug","status":"error"})
 
         try:
-            likes =  Likes.objects.filter(problem_solution__unique_code=uid)
+            likes =  Like.objects.filter(problem_solution__unique_code=uid)
             amount = len(likes) if len(likes) <=9 else "9+"
             serializer = self.get_serializer(likes, many=True)
          
@@ -216,7 +208,7 @@ class LikeView(ModelViewSet):
 class DisLikeView(ModelViewSet):
 
     serializer_class = DisLikeSerializer
-    queryset = Dislikes.objects.all()
+    queryset = Dislike.objects.all()
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def create(self,request):
@@ -226,15 +218,15 @@ class DisLikeView(ModelViewSet):
         try:
             problem_solution = ProblemSolution.objects.filter(unique_code=unique_code).get()
             try:
-                like = Dislikes.objects.filter(problem_solution=problem_solution,user=user).get()
+                like = Dislike.objects.filter(problem_solution=problem_solution,user=user).get()
                 print(like)
                 like.delete()
                 problem_solution.user.score-=10
                 problem_solution.user.save()
                 return Response(status=status.HTTP_200_OK,data={"status":"success","content":"dislike was removed successfully"})
 
-            except Dislikes.DoesNotExist:
-                Dislikes.objects.create(user=user,problem_solution=problem_solution)
+            except Dislike.DoesNotExist:
+                Dislike.objects.create(user=user,problem_solution=problem_solution)
                 return Response(status=status.HTTP_200_OK,data={"status":"success","content":"dislike was added successfully"})
             
             except Exception as e:
@@ -256,7 +248,7 @@ class DisLikeView(ModelViewSet):
             return Response(status=status.HTTP_400_BAD_REQUEST,data={"content":"Please provide a valid slug","status":"error"})
 
         try:
-            likes =  Dislikes.objects.filter(problem_solution__unique_code=uid)
+            likes =  Dislike.objects.filter(problem_solution__unique_code=uid)
             amount = len(likes) if len(likes) <=9 else "9+"
             serializer = self.get_serializer(likes, many=True)
            
@@ -273,3 +265,68 @@ class ReportView(ModelViewSet):
     serializer_class = ReportSolutionSerializer
     queryset = ReportSolution.objects.all()
     permission_classes = [permissions.IsAuthenticated]
+
+class ChallengeViewSet(ModelViewSet):
+    """Main challenge endpoints"""
+    queryset = Challenge.objects.all()
+    serializer_class = ChallengeSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    lookup_field = 'slug'
+
+    @action(detail=True, methods=['post'])
+    def submit_solution(self, request, pk=None):
+        challenge = self.get_object()
+        serializer = SolutionSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            solution = serializer.save(
+                user=request.user,
+                challenge=challenge
+            )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class SolutionViewSet(ModelViewSet):
+    """Solution management endpoints"""
+    serializer_class = SolutionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.is_authenticated:
+            return Solution.objects.filter(
+                Q(user=self.request.user) | 
+                Q(is_private=False)
+            )
+        return Solution.objects.filter(is_private=False)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class CommentViewSet(ModelViewSet):
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Comment.objects.filter(solution_id=self.kwargs['solution_pk'])
+
+    def perform_create(self, serializer):
+        solution = get_object_or_404(Solution, pk=self.kwargs['solution_pk'])
+        serializer.save(user=self.request.user, solution=solution)
+
+class LikeViewSet(ModelViewSet):
+    serializer_class = LikeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Like.objects.filter(solution_id=self.kwargs['solution_pk'])
+
+    def perform_create(self, serializer):
+        solution = get_object_or_404(Solution, pk=self.kwargs['solution_pk'])
+        serializer.save(user=self.request.user, solution=solution)
+
+class DislikeViewSet(ModelViewSet):
+    serializer_class = DisLikeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Dislike.objects.filter(solution_id=self.kwargs['solution_pk'])
