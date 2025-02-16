@@ -29,7 +29,29 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         
         model = User
-        fields = ["username","profile","email","password","first_name","last_name"]
+        fields = ['username', 'email', 'first_name', 'last_name', 'profile', 'motivation']
+        extra_kwargs = {
+            'username': {'required': False},
+            'email': {'required': False},
+            'first_name': {'required': False},
+            'last_name': {'required': False},
+            'profile': {'required': False},
+            'motivation': {'required': False}
+        }
+
+    def validate_email(self, value):
+        """Validate email uniqueness"""
+        user = self.context['request'].user
+        if User.objects.exclude(pk=user.pk).filter(email=value).exists():
+            raise serializers.ValidationError("This email is already in use.")
+        return value
+
+    def validate_username(self, value):
+        """Validate username uniqueness"""
+        user = self.context['request'].user
+        if User.objects.exclude(pk=user.pk).filter(username=value).exists():
+            raise serializers.ValidationError("This username is already in use.")
+        return value
 
 class FollowSerializer(serializers.ModelSerializer):
     class Meta:
