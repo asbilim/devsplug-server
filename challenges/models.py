@@ -1,7 +1,6 @@
 from django.db import models
 from django.utils.text import slugify
 from taggit.managers import TaggableManager
-from ckeditor_uploader.fields import RichTextUploadingField
 from django.db.models import F
 from django.core.mail import send_mail
 from string import ascii_letters
@@ -26,12 +25,12 @@ class ProblemItem(models.Model):
     title = models.TextField(unique=True)
     slug = models.SlugField(max_length=1500,null=True, blank=True)
     tags = TaggableManager()
-    content = RichTextUploadingField(null=True, blank=True)
+    content = models.TextField(null=True, blank=True)
     points = models.IntegerField(default=50)
     level = models.CharField(choices=(("easy","easy"),("medium","medium"),("hard","hard")),max_length=255)
     description = models.TextField(null=True,blank=True)
     image=models.ImageField(null=True, blank=True,upload_to="challenges-image/")
-    attachments = models.ManyToManyField(Attachment,null=True,blank=True)
+    attachments = models.ManyToManyField(Attachment, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -49,56 +48,12 @@ class ProblemItem(models.Model):
     
 
 
-class ProblemQuiz(models.Model):
-
-    title = models.TextField(unique=True,null=True)
-    slug = models.SlugField(max_length=1500,null=True, blank=True)
-    problem = models.ForeignKey(ProblemItem, related_name="quiz",on_delete=models.CASCADE)
-
-    def __str__(self):
-
-        return self.title
-    
-    def save(self, *args, **kwargs):
-        self.title = self.problem.title
-        self.slug = slugify(self.title)
-        super().save(*args, **kwargs)
-
-
-class QuizQuestion(models.Model):
-
-    title = models.TextField(unique=True)
-    slug = models.SlugField(max_length=1500,null=True, blank=True)
-    value = models.IntegerField()
-    problem_quiz = models.ForeignKey(ProblemQuiz,related_name="questions",on_delete=models.CASCADE)
-
-    def save(self, *args, **kwargs):
-        self.slug = slugify(self.title)
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return self.title
-
-class QuizQuestionAnswer(models.Model):
-
-    content = RichTextUploadingField()
-    is_correct = models.BooleanField(default=False)
-    quizquestion = models.ForeignKey(QuizQuestion,related_name="answers",on_delete=models.CASCADE)
-
-    def __str__(self):
-        
-        return f"{self.is_correct} {self.quizquestion.title} {self.content}"
-
-
-
-
-
 class Problems(models.Model):
 
     title = models.TextField(unique=True)
     slug = models.SlugField(max_length=1500,null=True, blank=True)
     tags = TaggableManager()
-    content = RichTextUploadingField(null=True, blank=True)
+    content = models.TextField(null=True, blank=True)
     problems = models.ManyToManyField(ProblemItem)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -136,24 +91,6 @@ class Ratings(models.Model):
         ordering = ("-created_at",)
 
 
-
-
-class UserAnswer(models.Model):
-    user = models.ForeignKey("authentication.User", on_delete=models.CASCADE, related_name="user_answers")
-    problem_item = models.ForeignKey("challenges.ProblemItem", on_delete=models.CASCADE, related_name="user_answers")
-    question = models.ForeignKey("challenges.QuizQuestion", on_delete=models.CASCADE, related_name="user_answers")
-    selected_answer = models.ForeignKey("challenges.QuizQuestionAnswer", on_delete=models.CASCADE, related_name="selected_by_users")
-    is_correct = models.BooleanField(default=False)
-    score = models.IntegerField(default=0,blank=True, null=True)
-    def save(self, *args, **kwargs):
-        # Automatically check if the selected answer is correct when saving.
-        self.is_correct = self.selected_answer.is_correct
-        self.score = self.question.value if self.is_correct else 0
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        correct_status = "Correct" if self.is_correct else "Incorrect"
-        return f"{self.user.username} - {self.problem_item.title} - {self.question.title} ({correct_status})"
 
 
 class ProblemItemSubmission(models.Model):
@@ -226,7 +163,9 @@ class ProblemSolution(models.Model):
         
 class Comments(models.Model):
 
-    user = models.ForeignKey("authentication.User",on_delete=models.CASCADE)
+    user = models.ForeignKey("authentication.User", 
+                            on_delete=models.CASCADE,
+                            related_name='legacy_comments')
     problem_solution = models.ForeignKey(ProblemSolution,on_delete=models.CASCADE,related_name="comments")
     created_at = models.DateTimeField(auto_now_add=True)
     content = models.TextField()
@@ -238,7 +177,9 @@ class Comments(models.Model):
         return f"{self.user.username} said {self.content[:100]}..."
     
 class Likes(models.Model):
-    user = models.ForeignKey("authentication.User", on_delete=models.CASCADE)
+    user = models.ForeignKey("authentication.User", 
+                            on_delete=models.CASCADE,
+                            related_name='legacy_likes')
     problem_solution = models.ForeignKey(ProblemSolution, on_delete=models.CASCADE, related_name="likes")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -267,7 +208,9 @@ class Likes(models.Model):
     
 class Dislikes(models.Model):
 
-    user = models.ForeignKey("authentication.User",on_delete=models.CASCADE)
+    user = models.ForeignKey("authentication.User", 
+                            on_delete=models.CASCADE,
+                            related_name='legacy_dislikes')
     problem_solution = models.ForeignKey(ProblemSolution,on_delete=models.CASCADE,related_name="dislikes")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -297,4 +240,90 @@ class ReportSolution(models.Model):
                 fail_silently=False,
             )
 
+# Core Challenge Models
+class Challenge(models.Model):
+    """Main challenge model replacing ProblemItem"""
+    title = models.CharField(max_length=200, unique=True)
+    slug = models.SlugField(max_length=250, unique=True)
+    description = models.TextField()
+    content = models.TextField()
+    difficulty = models.CharField(
+        choices=[("easy", "Easy"), ("medium", "Medium"), ("hard", "Hard")],
+        max_length=10
+    )
+    points = models.IntegerField(default=50)
+    tags = TaggableManager()
+    attachments = models.ManyToManyField('Attachment', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.title)
+        super().save(*args, **kwargs)
+
+class Solution(models.Model):
+    """Simplified solution model"""
+    user = models.ForeignKey('authentication.User', on_delete=models.CASCADE)
+    challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE)
+    code = models.TextField()
+    language = models.CharField(max_length=50)
+    status = models.CharField(
+        choices=[
+            ('pending', 'Pending'),
+            ('accepted', 'Accepted'),
+            ('rejected', 'Rejected')
+        ],
+        default='pending',
+        max_length=20
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['user', 'challenge']
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        is_new = not self.pk
+        super().save(*args, **kwargs)
+        if is_new and self.status == 'accepted':
+            self.user.add_points(self.challenge.points)
+
+class Comment(models.Model):
+    """Model to store comments on a solution."""
+    user = models.ForeignKey('authentication.User', 
+                            on_delete=models.CASCADE, 
+                            related_name="challenge_comments")
+    solution = models.ForeignKey(Solution, on_delete=models.CASCADE, related_name="comments")
+    content = models.TextField()
+    parent = models.ForeignKey("self", on_delete=models.CASCADE, related_name="replies", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username}: {self.content[:30]}"
+
+class Like(models.Model):
+    """Model for likes on a solution."""
+    user = models.ForeignKey('authentication.User', 
+                            on_delete=models.CASCADE, 
+                            related_name="challenge_likes")
+    solution = models.ForeignKey(Solution, on_delete=models.CASCADE, related_name="likes")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} liked solution {self.solution.id}"
+
+class Dislike(models.Model):
+    """Model for dislikes on a solution."""
+    user = models.ForeignKey('authentication.User', 
+                            on_delete=models.CASCADE, 
+                            related_name="challenge_dislikes")
+    solution = models.ForeignKey(Solution, on_delete=models.CASCADE, related_name="dislikes")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} disliked solution {self.solution.id}"
     

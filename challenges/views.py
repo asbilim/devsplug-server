@@ -1,11 +1,35 @@
-from .serializer import ProblemItemSerializer,ProblemSerializer,ProblemQuizSerializer,QuizQuestionSerializer,QuizQuestionAnswerSerializer,RatingsSerializer,ProblemSolutionSerializer,CommentSerializer,LikeSerializer,DisLikeSerializer,ReportSolutionSerializer
-from rest_framework.viewsets import ModelViewSet,ReadOnlyModelViewSet
-from .models import Comments, Dislikes, Likes, ProblemSolution, Problems,ProblemItem,QuizQuestionAnswer,QuizQuestion,ProblemQuiz, Ratings, ReportSolution
-from rest_framework import permissions
-from django.shortcuts import get_object_or_404
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
+from rest_framework import permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import status
+from django.shortcuts import get_object_or_404
+
+from .models import (
+    Problems,
+    ProblemItem,
+    Ratings,
+    ProblemSolution,
+    Comments,
+    Likes,
+    Dislikes,
+    Challenge,
+    Solution,
+    ReportSolution
+)
+
+from .serializer import (
+    ProblemSerializer,
+    ProblemItemSerializer,
+    RatingsSerializer,
+    ProblemSolutionSerializer,
+    CommentSerializer,
+    LikeSerializer,
+    DisLikeSerializer,
+    ReportSolutionSerializer,
+    ChallengeSerializer,
+    SolutionSerializer
+)
+
 class ProblemsViewset(ReadOnlyModelViewSet):
 
     serializer_class = ProblemSerializer
@@ -15,39 +39,6 @@ class ProblemItemViewset(ReadOnlyModelViewSet):
 
     serializer_class = ProblemItemSerializer
     queryset = ProblemItem.objects.all()
-    
-    @action(detail=False, methods=['post'], url_path='details')
-    def get_by_slug(self, request, slug=None):
-        slug = request.data.get('slug')
-        queryset = self.get_queryset()
-        problem_item = get_object_or_404(queryset, slug=slug)
-        serializer = self.get_serializer(problem_item)
-        return Response(serializer.data)
-    
-class QuizQuestionView(ReadOnlyModelViewSet):
-
-    serializer_class = QuizQuestionSerializer
-    queryset = QuizQuestion.objects.all()
-
-class ProblemQuizView(ReadOnlyModelViewSet):
-
-    serializer_class = ProblemQuizSerializer
-    queryset = ProblemQuiz.objects.all()
-    
-
-    @action(detail=False, methods=['post'], url_path='details')
-    def get_by_slug(self, request, slug=None):
-        slug = request.data.get('slug')
-        queryset = self.get_queryset()
-        problem_item = get_object_or_404(queryset, slug=slug)
-        serializer = self.get_serializer(problem_item)
-        return Response(serializer.data)
-
-class QuizQuestionAnswerView(ModelViewSet):
-
-    serializer_class = QuizQuestionAnswerSerializer
-    queryset = QuizQuestionAnswer.objects.all()
-
     
 class RatingViewset(ModelViewSet):
 
@@ -273,3 +264,30 @@ class ReportView(ModelViewSet):
     serializer_class = ReportSolutionSerializer
     queryset = ReportSolution.objects.all()
     permission_classes = [permissions.IsAuthenticated]
+
+class ChallengeViewSet(ReadOnlyModelViewSet):
+    """Main challenge endpoints"""
+    queryset = Challenge.objects.all()
+    serializer_class = ChallengeSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    @action(detail=True, methods=['post'])
+    def submit_solution(self, request, pk=None):
+        challenge = self.get_object()
+        serializer = SolutionSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            solution = serializer.save(
+                user=request.user,
+                challenge=challenge
+            )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class SolutionViewSet(ModelViewSet):
+    """Solution management endpoints"""
+    serializer_class = SolutionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Solution.objects.filter(user=self.request.user)
