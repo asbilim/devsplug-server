@@ -17,7 +17,9 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 
 # APPLICATIONS
 INSTALLED_APPS = [
-    'jazzmin',
+    'unfold',
+    'unfold.contrib.filters',
+    'unfold.contrib.forms',
     'easy_thumbnails',
     'filer',
     'authentication',
@@ -33,9 +35,6 @@ INSTALLED_APPS = [
     'taggit',
     'drf_yasg',
     'django_crontab',
-    'unfold',
-    'unfold.contrib.filters',
-    'unfold.contrib.forms',
 ]
 
 # MIDDLEWARE
@@ -104,8 +103,11 @@ USE_I18N = True
 USE_TZ = True
 
 # STATIC & MEDIA FILES
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
@@ -123,15 +125,25 @@ if not DEBUG:
     LOGGING = {
         'version': 1,
         'disable_existing_loggers': False,
+        'formatters': {
+            'verbose': {
+                'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+                'style': '{',
+            },
+        },
         'handlers': {
-            'logfile': {
+            'file': {
+                'level': 'ERROR',
                 'class': 'logging.FileHandler',
-                'filename': 'server.log',
+                'filename': os.path.join(BASE_DIR, 'django-error.log'),
+                'formatter': 'verbose',
             },
         },
         'loggers': {
             'django': {
-                'handlers': ['logfile'],
+                'handlers': ['file'],
+                'level': 'ERROR',
+                'propagate': True,
             },
         },
     }
@@ -238,3 +250,51 @@ UNFOLD = {
 }
 
 TEST_RUNNER = "devsplug.test_runner.CustomTestRunner"
+
+# Add this near the email configuration:
+if DEBUG or 'test' in sys.argv:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    # Enable logging for emails
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+            },
+        },
+        'loggers': {
+            'django.core.mail': {
+                'handlers': ['console'],
+                'level': 'DEBUG',
+            },
+        },
+    }
+
+# Email logging for non-test environment
+if not 'test' in sys.argv:
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+            },
+            'mail_admins': {
+                'level': 'ERROR',
+                'class': 'django.utils.log.AdminEmailHandler'
+            }
+        },
+        'loggers': {
+            'django.core.mail': {
+                'handlers': ['console'],
+                'level': 'DEBUG',
+                'propagate': True,
+            },
+            'django.request': {
+                'handlers': ['mail_admins'],
+                'level': 'ERROR',
+                'propagate': True,
+            },
+        }
+    }

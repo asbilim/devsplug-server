@@ -1,5 +1,5 @@
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth import get_user_model
 from .serializer import UserSerializer
 from rest_framework.views import APIView
@@ -86,21 +86,25 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class UserUpdate(UpdateAPIView):
-    
     queryset = get_user_model().objects.all()
     serializer_class = UserUpdateSerializer
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [FormParser,MultiPartParser]
+    parser_classes = [MultiPartParser, FormParser]
     
     def get_object(self):
-      
         return self.request.user
 
-    def get_queryset(self):
-      
-        user = self.request.user
-        return get_user_model().objects.filter(id=user.id)
-    
+    def patch(self, request, *args, **kwargs):
+        user = self.get_object()
+        serializer = self.get_serializer(user, data=request.data, partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        print("Validation errors:", serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
     
     
@@ -164,106 +168,123 @@ class UserClaimCode(CreateAPIView):
             return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"User {username} does not exists ","exists":False})
           
 class UserActivate(CreateAPIView):
-    
-    
     queryset = get_user_model().objects.all()
     serializer_class = UserCreateSerializer
-    permission_classes = []
+    permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
-        
-        otp_code = request.data.get("otp")
+        otp_code = request.data.get("code")
+        email = request.data.get("email")
         
         try:
-            verification = VerificationCode.objects.get(code=otp_code)
-            if verification:
-                verification.user.is_active = True
-                verification.user.save()
-                verification.delete()
-                return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "success","content":f"account activated successfully","exists":False})
-            return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"the code is incorrect ","exists":False})
-        except Exception as e:
-            print(e)
-            return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"the code is incorrect ","exists":False})
+            user = User.objects.get(email=email)
+            verification = VerificationCode.objects.get(code=otp_code, user=user)
+            
+            user.is_active = True
+            user.save()
+            verification.delete()
+            
+            return Response(
+                {"status": "success", "content": "account activated successfully"},
+                status=status.HTTP_200_OK
+            )
+        except (User.DoesNotExist, VerificationCode.DoesNotExist) as e:
+            return Response(
+                {"status": "error", "content": "Invalid code or email"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
 
 
 class UserResetApply(CreateAPIView):
-    
-    
     queryset = get_user_model().objects.all()
     serializer_class = UserCreateSerializer
-    permission_classes = []
+    permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
-        
         email = request.data.get("email")
-
         try:
             user = User.objects.get(email=email)
-        except Exception as e:
-            return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"user with the email {email} does not exist","exists":False})
-        
-        try:
-            reset,created = ResetCode.objects.get_or_create(user=user)
-            print(created)
-            if reset:
-                code = reset.generate_code()
-                send_mail("Devsplug password verification code",f"Hello {user.username} this is your Devsplug verification code : {code}","noreply@devsplug.com",[email],fail_silently=False)
-                reset.save()
-                return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "success","content":f"an email has been send , verify to continue","exists":False})
-            return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"the code is incorrect ","exists":False})
-        except Exception as e:
-            print(e)
-            return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"the code is incorrect ","exists":False})
-        
+            reset, created = ResetCode.objects.get_or_create(user=user)
+            code = reset.generate_code()
+            
+            send_mail(
+                "Devsplug password verification code",
+                f"Hello {user.username} this is your Devsplug verification code : {code}",
+                "noreply@devsplug.com",
+                [email],
+                fail_silently=False
+            )
+            
+            return Response(
+                {"status": "success", "content": "An email has been sent, verify to continue"},
+                status=status.HTTP_200_OK
+            )
+        except User.DoesNotExist:
+            return Response(
+                {"status": "error", "content": f"User with email {email} does not exist"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 class UserResetVerify(CreateAPIView):
-    
-    
     queryset = get_user_model().objects.all()
     serializer_class = UserCreateSerializer
-    permission_classes = []
+    permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
+        otp = request.data.get("code")
+        email = request.data.get("email")
         
-        otp = request.data.get("otp")
-
         try:
-            reset = ResetCode.objects.get(code=otp)
-        except Exception as e:
-            return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"user with the otp does not exist","exists":False})
-        
-        if reset.code == otp:
+            user = User.objects.get(email=email)
+            reset = ResetCode.objects.get(code=otp, user=user)
             reset.can_reset = True
             reset.save()
-            return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "success","content":f"success, you can now change your password","exists":False})
-        
-        return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"the code is incorrect ","exists":False})
+            
+            return Response(
+                {"status": "success", "content": "Success, you can now change your password"},
+                status=status.HTTP_200_OK
+            )
+        except (User.DoesNotExist, ResetCode.DoesNotExist):
+            return Response(
+                {"status": "error", "content": "Invalid code or email"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class UserResetChange(CreateAPIView):
-    
-    
     queryset = get_user_model().objects.all()
     serializer_class = UserCreateSerializer
-    permission_classes = []
+    permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
-        
         password = request.data.get("password")
-        otp = request.data.get("otp")
+        code = request.data.get("code")
+        email = request.data.get("email")
+        
         try:
-            reset = ResetCode.objects.get(code=otp)
-        except Exception as e:
-            return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"user with the email {email} does not exist","exists":False})
-        
-        if reset.can_reset:
-            reset.user.set_password(password)
-            reset.user.save()
-            return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "success","content":f"success, password changed successfully","exists":False})
-        
-        return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"the code is incorrect ","exists":False})
+            user = User.objects.get(email=email)
+            reset = ResetCode.objects.get(code=code, user=user)
+            
+            if reset.can_reset:
+                user.set_password(password)
+                user.save()
+                reset.delete()
+                return Response(
+                    {"status": "success", "content": "Password changed successfully"},
+                    status=status.HTTP_200_OK
+                )
+            
+            return Response(
+                {"status": "error", "content": "Reset code not verified"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        except (User.DoesNotExist, ResetCode.DoesNotExist):
+            return Response(
+                {"status": "error", "content": "Invalid code or email"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 class FollowViewSet(viewsets.ModelViewSet):
     serializer_class = FollowSerializer
