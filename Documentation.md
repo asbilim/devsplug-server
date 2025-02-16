@@ -41,6 +41,16 @@
   - [🤝 Contributing](#-contributing)
   - [📝 License](#-license)
   - [8. Conclusion](#8-conclusion)
+  - [Authentication System Details](#authentication-system-details)
+    - [Authentication Flow](#authentication-flow)
+    - [API Endpoints](#api-endpoints)
+    - [Email Templates](#email-templates)
+    - [Security Features](#security-features)
+    - [Testing Coverage](#testing-coverage)
+    - [Test Examples](#test-examples)
+    - [Development Guidelines](#development-guidelines)
+    - [Monitoring and Logging](#monitoring-and-logging)
+    - [Future Improvements](#future-improvements)
 
 ---
 
@@ -262,6 +272,7 @@ The test suite covers:
    - Test both success and failure cases
 
 2. **Test Structure**
+
    ```python
    def test_example(self):
        """Clear description of what this test verifies"""
@@ -322,3 +333,203 @@ The refactoring effort ensures that Devsplug remains a robust platform for regul
 ---
 
 _Documentation prepared by asbilim_
+
+## Authentication System Details
+
+### Authentication Flow
+
+1. **Registration Flow**
+
+   ```
+   User Registration -> Email Verification -> Account Activation
+   ```
+
+   - User provides username, email, and password
+   - System sends verification code via email
+   - User activates account using the code
+
+2. **Password Reset Flow**
+
+   ```
+   Request Reset -> Verify Code -> Change Password
+   ```
+
+   - User requests password reset with email
+   - System sends verification code
+   - User verifies code
+   - User sets new password
+
+3. **Profile Management**
+   - Update profile information (including image)
+   - Change password while logged in
+   - Update motivation/bio
+   - View and manage followers
+
+### API Endpoints
+
+#### Authentication
+
+```
+POST /api/user/create           # Register new user
+POST /api/user/activate         # Activate account with code
+POST /api/user/password/apply   # Request password reset
+POST /api/user/password/verify  # Verify reset code
+POST /api/user/password/change  # Change password with code
+POST /api/token/                # Get JWT token
+POST /api/token/refresh/        # Refresh JWT token
+```
+
+#### Profile Management
+
+```
+PATCH /api/user/update/<id>     # Update profile
+POST /api/user/motivation-edit  # Update motivation/bio
+GET /api/user/me                # Get current user info
+```
+
+### Email Templates
+
+1. **Registration Verification**
+
+   ```
+   Subject: Devsplug verification code
+   Content: Hello {username} this is your Devsplug verification code: {code}
+   ```
+
+2. **Password Reset**
+   ```
+   Subject: Devsplug password verification code
+   Content: Hello {username} this is your Devsplug verification code: {code}
+   ```
+
+### Security Features
+
+- JWT Authentication with refresh tokens
+- Email verification for registration
+- Two-step password reset process
+- Secure password hashing
+- Rate limiting on sensitive endpoints
+- Permission-based access control
+
+### Testing Coverage
+
+The authentication system includes comprehensive tests for:
+
+1. **User Registration**
+
+   - Successful registration
+   - Duplicate username/email handling
+   - Email verification
+   - Account activation
+
+2. **Password Management**
+
+   - Password reset flow
+   - Password change while logged in
+   - Invalid code handling
+   - Email verification
+
+3. **Profile Updates**
+
+   - Profile image upload
+   - Information updates
+   - Validation checks
+   - Permission verification
+
+4. **Email System**
+   - Email sending verification
+   - Template rendering
+   - Error handling
+   - Content verification
+
+### Test Examples
+
+```python
+def test_registration_and_activation_flow(self):
+    """
+    Tests the complete registration and activation process:
+    1. Register user
+    2. Verify inactive status
+    3. Check verification code
+    4. Verify email sending
+    5. Activate account
+    6. Confirm active status
+    """
+    # Implementation details...
+
+def test_password_reset_flow(self):
+    """
+    Tests the complete password reset process:
+    1. Request reset
+    2. Verify code generation
+    3. Check email
+    4. Verify code
+    5. Change password
+    6. Verify new login
+    """
+    # Implementation details...
+
+def test_profile_update(self):
+    """
+    Tests profile update functionality:
+    1. Update basic info
+    2. Upload profile image
+    3. Update motivation
+    4. Verify changes
+    """
+    # Implementation details...
+```
+
+### Development Guidelines
+
+1. **Email Configuration**
+
+   - Development: Uses console backend
+   - Testing: Uses console backend with logging
+   - Production: Uses SMTP with proper credentials
+
+2. **File Upload Handling**
+
+   - Supports image uploads for profiles
+   - Validates file types and sizes
+   - Uses secure storage backend
+
+3. **Error Handling**
+
+   - Proper status codes for different scenarios
+   - Descriptive error messages
+   - Consistent response format
+
+4. **Testing Requirements**
+   - All new features must include tests
+   - Email sending must be verified
+   - File upload handling must be tested
+   - Error scenarios must be covered
+
+### Monitoring and Logging
+
+The system includes comprehensive logging for:
+
+- Email sending attempts
+- Failed login attempts
+- Password reset requests
+- Profile update activities
+
+### Future Improvements
+
+1. **Enhanced Security**
+
+   - Add 2FA support
+   - Implement OAuth providers
+   - Add session management
+
+2. **User Experience**
+
+   - Real-time email verification
+   - Enhanced profile customization
+   - Social media integration
+
+3. **Administration**
+   - Enhanced user management tools
+   - Audit logging
+   - Analytics dashboard
