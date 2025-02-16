@@ -1,15 +1,15 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import User, Follow
-from challenges.serializer import ProblemSerializer
 
 
 class UserSerializer(serializers.ModelSerializer):
-    problems = ProblemSerializer(many=True, read_only=True)
-
+    # Removed legacy problems field:
+    # problems = ProblemSerializer(many=True, read_only=True)
+    
     class Meta:
         model = User
-        fields = ['id', 'username', 'motivation', 'score', 'profile', 'problems', 'title']
+        fields = ['id', 'username', 'motivation', 'score', 'profile', 'title']
 
 class LeaderSerializer(serializers.ModelSerializer):
     class Meta:
@@ -34,6 +34,13 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 class FollowSerializer(serializers.ModelSerializer):
     class Meta:
         model = Follow
-        fields = ["id", "follower", "following", "created_at"]
-        read_only_fields = ["follower"]
+        fields = ['id', 'following', 'created_at']
+        extra_kwargs = {
+            'following': {'required': True}
+        }
+
+    def validate(self, data):
+        if Follow.objects.filter(follower=self.context['request'].user, following=data['following']).exists():
+            raise serializers.ValidationError("You are already following this user")
+        return data
         

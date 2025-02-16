@@ -123,4 +123,50 @@ class SolutionPrivacyTests(APITestCase):
         self.client.force_authenticate(user=self.user2)
         url = reverse('solution-detail', args=[self.solution.id])
         response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND) 
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+class UserAPITests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='apiTester',
+            password='testpass123',
+            email='apitest@example.com'
+        )
+        # Force authentication for the tests below.
+        self.client.force_authenticate(user=self.user)
+
+    def test_user_me_endpoint(self):
+        # Assumes the "me" action is registered; adjust the reverse call as needed.
+        url = reverse('user-data-me')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('username', response.data)
+
+    def test_leaderboard_endpoint(self):
+        # Create an additional user to ensure list is returned.
+        User.objects.create_user(username='user2', password='testpass123', email='user2@example.com')
+        url = reverse('users-leaderboard-list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsInstance(response.data, list)
+
+    def test_change_password_endpoint(self):
+        url = reverse('user-change-password')
+        data = {
+            "current_password": "testpass123",
+            "new_password": "newpass456"
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("newpass456"))
+
+    def test_set_motivation_endpoint(self):
+        url = reverse('user-motivation-edit')
+        data = {
+            "motivation": "I love coding!"
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.motivation, "I love coding!") 

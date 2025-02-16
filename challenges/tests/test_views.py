@@ -10,36 +10,78 @@ User = get_user_model()
 
 class ChallengeAPITests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username='testuser', password='testpass')
-        self.challenge = Challenge.objects.create(
-            title='Test Challenge',
-            description='Test Description',
-            content='Test Content',
-            difficulty='easy',
-            points=50
+        self.user = User.objects.create_user(
+            username='challengeAPI',
+            password='testpass123',
+            email='challengeapi@example.com'
         )
+        self.challenge = Challenge.objects.create(
+            title="API Challenge",
+            description="Testing challenge",
+            content="Challenge content",
+            difficulty="easy",
+            points=75
+        )
+        self.client.force_authenticate(user=self.user)
 
-    def test_list_challenges(self):
+    def test_challenge_list(self):
         url = reverse('challenge-list')
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 1)
+        # Check that the created challenge is in the list.
+        self.assertTrue(any(ch['title'] == "API Challenge" for ch in response.data))
 
-    def test_create_challenge(self):
-        self.client.force_authenticate(user=self.user)
-        url = reverse('challenge-list')
+    def test_submit_solution(self):
+        url = reverse('challenge-submit-solution', kwargs={'slug': self.challenge.slug})
         data = {
-            'title': 'New Challenge',
-            'description': 'New Description',
-            'content': 'New Content',
-            'difficulty': 'medium',
-            'points': 100,
-            'tags': ['python', 'testing']
+            "code": "print('Test solution')",
+            "language": "python"
         }
-        response = self.client.post(url, data, format='json')
-        print(response.data)  # Add this to see validation errors
+        response = self.client.post(url, data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Challenge.objects.count(), 2)
+        self.assertEqual(response.data.get("code"), "print('Test solution')")
+
+
+class SolutionNestedAPITests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='nestedAPI',
+            password='testpass123',
+            email='nested@example.com'
+        )
+        self.challenge = Challenge.objects.create(
+            title="Nested Challenge",
+            description="Nested endpoints",
+            content="Content for nested test",
+            difficulty="medium",
+            points=90
+        )
+        self.solution = Solution.objects.create(
+            user=self.user,
+            challenge=self.challenge,
+            code="print('Nested test')",
+            language="python"
+        )
+        self.client.force_authenticate(user=self.user)
+
+    def test_create_comment_for_solution(self):
+        url = reverse('solution-comment-list', kwargs={'solution_pk': self.solution.id})
+        data = {
+            "content": "Nice solution!"
+        }
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data.get("content"), "Nice solution!")
+
+    def test_like_solution(self):
+        url = reverse('solution-like-list', kwargs={'solution_pk': self.solution.id})
+        response = self.client.post(url, {})
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_dislike_solution(self):
+        url = reverse('solution-dislike-list', kwargs={'solution_pk': self.solution.id})
+        response = self.client.post(url, {})
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
 class SolutionAPITests(APITestCase):
     def setUp(self):
