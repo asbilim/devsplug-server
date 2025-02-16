@@ -8,31 +8,35 @@ User = get_user_model()
 class UserModelTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username='testuser',
+            username='authTester',
             password='testpass123',
-            email='test@example.com'
+            email='auth@example.com'
         )
 
     def test_user_creation(self):
         self.assertEqual(self.user.score, 0)
+        # For a new user with 0 score, title should be 'Beginner'
         self.assertEqual(self.user.title, 'Beginner')
 
-    def test_add_points(self):
-        self.user.add_points(500)
-        self.assertEqual(self.user.score, 500)
+    def test_add_points_and_title_update(self):
+        self.user.add_points(600)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.score, 600)
+        # With a score of 600, the user should have the title corresponding to threshold 500.
         self.assertEqual(self.user.title, 'Novice')
-
-        self.user.add_points(600)  # Total: 1100
-        self.assertEqual(self.user.title, 'Developer')
+        
+        self.user.add_points(500)  # Total becomes 1100
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.title, 'Developer')  # Crosses 1000 threshold
 
 class FollowModelTests(TestCase):
     def setUp(self):
         self.user1 = User.objects.create_user(
-            username='user1',
+            username='follower',
             password='testpass123'
         )
         self.user2 = User.objects.create_user(
-            username='user2',
+            username='following',
             password='testpass123'
         )
 
@@ -51,7 +55,6 @@ class FollowModelTests(TestCase):
             follower=self.user1,
             following=self.user2
         )
-        # Try to create duplicate follow
         with self.assertRaises(IntegrityError):
             Follow.objects.create(
                 follower=self.user1,

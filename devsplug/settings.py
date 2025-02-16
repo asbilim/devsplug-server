@@ -200,6 +200,13 @@ if 'test' in sys.argv:
     PASSWORD_HASHERS = [
         'django.contrib.auth.hashers.MD5PasswordHasher',
     ]
+    # Disable migrations during tests
+    class DisableMigrations:
+        def __contains__(self, item):
+            return True
+        def __getitem__(self, item):
+            return None
+    MIGRATION_MODULES = DisableMigrations()
 
 # Add Unfold settings
 UNFOLD = {
@@ -229,3 +236,5 @@ UNFOLD = {
         "modals": True,
     },
 }
+
+TEST_RUNNER = "devsplug.test_runner.CustomTestRunner"

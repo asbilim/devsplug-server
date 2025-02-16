@@ -17,6 +17,7 @@ from .models import User
 import json
 from django.core.mail import send_mail
 from .serializer import FollowSerializer
+from rest_framework import serializers
 
 class LeaderView(viewsets.ReadOnlyModelViewSet):
 
@@ -61,50 +62,24 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(top_users, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['post'], url_path='add-problem')
-    def add_problem(self, request, pk=None):
-        
-        problem_id = request.data.get('problem_id')
-        if not problem_id:
-            return Response({"error": "Problem ID is required."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        problem = get_object_or_404(Problems, pk=problem_id)
-        if request.user.problems.filter(id=problem_id).exists():
-            request.user.problems.remove(problem)
-            return Response({"success": f"Problem {problem_id} removed from user."}, status=status.HTTP_200_OK)
-        else:
-            request.user.problems.add(problem)
-            return Response({"success": f"Problem {problem_id} added to user."}, status=status.HTTP_200_OK)
-    
     @action(detail=False, methods=['post'], url_path='motivation-edit')
     def set_motivation(self, request):
-
-      
-        
         new_motivation = request.data.get('motivation')
-        print(new_motivation)
         if not new_motivation:
             return Response({"error": "new bio is required."}, status=status.HTTP_400_BAD_REQUEST)
-        
         request.user.motivation = new_motivation
         request.user.save()
-       
-        return Response({"success": f"Your bio was modified successfully"}, status=status.HTTP_200_OK)
-    
-    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated],url_path="change-password")
+        return Response({"success": "Your bio was modified successfully"}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated], url_path="change-password")
     def change_password(self, request, *args, **kwargs):
         user = self.request.user
         current_password = request.data.get("current_password")
         new_password = request.data.get("new_password")
-
-        
         if not user.check_password(current_password):
             return Response({"content": "Wrong password."}, status=status.HTTP_400_BAD_REQUEST)
-
-
         if not new_password:
             return Response({"content": "New password required."}, status=status.HTTP_400_BAD_REQUEST)
-
         user.set_password(new_password)
         user.save()
         return Response({"content": "password set successfully"}, status=status.HTTP_200_OK)
@@ -178,7 +153,7 @@ class UserClaimCode(CreateAPIView):
             otp_code = verification.generate_code()
             verification.save()
             try:
-                send_mail("Devsplug verification code",f"Hello {username} this is your Devsplug verification code : {otp_code}","noreply@devsplug.com",[email],fail_silently=False)       
+                send_mail("Devsplug verification code", f"Hello {username} this is your Devsplug verification code: {otp_code}", "noreply@devsplug.com", [user.email], fail_silently=False)       
             except Exception as e:
                 return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"could not send email to user","exists":False})
 
@@ -298,4 +273,7 @@ class FollowViewSet(viewsets.ModelViewSet):
         return Follow.objects.filter(follower=self.request.user)
 
     def perform_create(self, serializer):
+        following_user = get_object_or_404(User, id=self.request.data.get('following'))
+        if Follow.objects.filter(follower=self.request.user, following=following_user).exists():
+            raise serializers.ValidationError("You are already following this user")
         serializer.save(follower=self.request.user)

@@ -5,7 +5,6 @@ from django.utils.text import slugify
 import os
 from django.conf import settings
 import random
-from challenges.models import Problems
 
 class User(AbstractUser):
     """Simplified user model with better point management"""
@@ -13,8 +12,7 @@ class User(AbstractUser):
     title = models.CharField(max_length=50, blank=True)
     motivation = models.TextField(null=True, blank=True)
     profile = models.ImageField(null=True, blank=True)
-    problems = models.ManyToManyField(Problems)
-    email=models.EmailField(null=True, blank=True,unique=True)
+    email = models.EmailField(null=True, blank=True, unique=True)
     
     TITLES = {
         0: 'Beginner',
@@ -93,7 +91,7 @@ class Follow(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
-        unique_together = (('follower', 'following'),)
+        unique_together = ('follower', 'following')
 
     def __str__(self):
-        return f"{self.follower.username} follows {self.following.username}"
+        return f"{self.follower} follows {self.following}"
