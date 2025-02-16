@@ -3,7 +3,7 @@ from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
 )
-from rest_framework.routers import SimpleRouter
+from rest_framework.routers import SimpleRouter, DefaultRouter
 from .views import (
     UserViewSet,
     UserUpdate,
@@ -13,13 +13,16 @@ from .views import (
     UserResetApply,
     UserResetVerify,
     UserResetChange,
-    UserClaimCode
+    UserClaimCode,
+    FollowViewSet
 )
 
-router = SimpleRouter()
+router = DefaultRouter()
 
 router.register("me", UserViewSet, basename="user-data")
 router.register("leaderboard", LeaderView, basename="users-leaderboard")
+router.register(r'users', UserViewSet, basename='user')
+router.register(r'follows', FollowViewSet, basename='follow')
 
 urlpatterns = [
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),

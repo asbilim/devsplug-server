@@ -5,6 +5,8 @@ from django.db.models import F
 from django.core.mail import send_mail
 from string import ascii_letters
 import random
+from django.core.exceptions import ValidationError
+from django.db.models import Q
 
 generate_string = lambda taille: "".join([ascii_letters[random.randint(0,len(ascii_letters)-1)] for i in range(taille)])
 
@@ -137,6 +139,7 @@ class ProblemSolution(models.Model):
     problem_item = models.ForeignKey(ProblemItem,on_delete=models.CASCADE,blank=True,null=True)
     description = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(null=True, blank=True,auto_now_add=True)
+    is_private = models.BooleanField(default=False)
     
 
     def __str__(self):
@@ -260,9 +263,21 @@ class Challenge(models.Model):
     class Meta:
         ordering = ['-created_at']
 
+    def clean(self):
+        """Add validation for title uniqueness at model level"""
+        if Challenge.objects.exclude(pk=self.pk).filter(title__iexact=self.title).exists():
+            raise ValidationError({'title': 'A challenge with this title already exists.'})
+
     def save(self, *args, **kwargs):
+        self.clean()  # Call validation before saving
         if not self.slug:
-            self.slug = slugify(self.title)
+            base_slug = slugify(self.title)
+            unique_slug = base_slug
+            num = 1
+            while Challenge.objects.filter(slug=unique_slug).exists():
+                unique_slug = f"{base_slug}-{num}"
+                num += 1
+            self.slug = unique_slug
         super().save(*args, **kwargs)
 
 class Solution(models.Model):
@@ -281,6 +296,7 @@ class Solution(models.Model):
         max_length=20
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    is_private = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ['user', 'challenge']
@@ -288,9 +304,23 @@ class Solution(models.Model):
 
     def save(self, *args, **kwargs):
         is_new = not self.pk
+        old_status = None
+        
+        if not is_new:
+            old_instance = Solution.objects.get(pk=self.pk)
+            old_status = old_instance.status
+        
         super().save(*args, **kwargs)
-        if is_new and self.status == 'accepted':
-            self.user.add_points(self.challenge.points)
+        
+        # Award points if status changed to accepted
+        if self.status == 'accepted' and (is_new or old_status != 'accepted'):
+            self.user.score += self.challenge.points
+            self.user.save(update_fields=['score'])
+
+    def get_queryset(self):
+        if self.request.user.is_authenticated:
+            return Solution.objects.filter(Q(user=self.request.user) | Q(is_private=False))
+        return Solution.objects.filter(is_private=False)
 
 class Comment(models.Model):
     """Model to store comments on a solution."""

@@ -45,15 +45,22 @@ class LeaderView(viewsets.ReadOnlyModelViewSet):
     
 
 class UserViewSet(viewsets.ModelViewSet):
-    
+    queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
-  
-    def get_queryset(self):
-        
-        user = self.request.user
-        return User.objects.filter(id=user.id)
-    
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    lookup_field = 'username'
+
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'])
+    def leaderboard(self, request):
+        top_users = User.objects.order_by('-score')[:10]
+        serializer = self.get_serializer(top_users, many=True)
+        return Response(serializer.data)
+
     @action(detail=False, methods=['post'], url_path='add-problem')
     def add_problem(self, request, pk=None):
         
@@ -284,25 +291,11 @@ class UserResetChange(CreateAPIView):
         return Response(status=status.HTTP_401_UNAUTHORIZED,data={"status": "error","content":f"the code is incorrect ","exists":False})
 
 class FollowViewSet(viewsets.ModelViewSet):
-    queryset = Follow.objects.all()
-    permission_classes = [permissions.IsAuthenticated]
     serializer_class = FollowSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
-    def create(self, request, *args, **kwargs):
-        follower = request.user
-        following_id = request.data.get("following_id")
-        if not following_id:
-            return Response({"error": "following_id is required."}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            following = User.objects.get(id=following_id)
-        except User.DoesNotExist:
-            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+    def get_queryset(self):
+        return Follow.objects.filter(follower=self.request.user)
 
-        # Check if already following; if yes then unfollow
-        follow_qs = Follow.objects.filter(follower=follower, following=following)
-        if follow_qs.exists():
-            follow_qs.delete()
-            return Response({"success": "Unfollowed successfully."}, status=status.HTTP_200_OK)
-        else:
-            Follow.objects.create(follower=follower, following=following)
-            return Response({"success": "Followed successfully."}, status=status.HTTP_201_CREATED)
+    def perform_create(self, serializer):
+        serializer.save(follower=self.request.user)
