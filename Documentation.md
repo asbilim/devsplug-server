@@ -51,6 +51,29 @@
     - [Development Guidelines](#development-guidelines)
     - [Monitoring and Logging](#monitoring-and-logging)
     - [Future Improvements](#future-improvements)
+  - [Frontend Integration Guide](#frontend-integration-guide)
+    - [Authentication Flow Integration](#authentication-flow-integration)
+      - [1. User Registration](#1-user-registration)
+      - [2. Account Activation](#2-account-activation)
+      - [3. User Login](#3-user-login)
+      - [4. Token Refresh](#4-token-refresh)
+    - [Social Authentication](#social-authentication)
+      - [1. GitHub Authentication](#1-github-authentication)
+      - [2. Google Authentication](#2-google-authentication)
+      - [3. GitLab Authentication](#3-gitlab-authentication)
+    - [User Management](#user-management)
+      - [1. Get User Profile](#1-get-user-profile)
+      - [2. Update Profile](#2-update-profile)
+    - [Social Features](#social-features)
+      - [1. Follow User](#1-follow-user)
+      - [2. Get Followers/Following](#2-get-followersfollowing)
+      - [3. Leaderboard](#3-leaderboard)
+    - [Error Handling](#error-handling)
+    - [Implementation Examples](#implementation-examples)
+      - [React Example](#react-example)
+      - [Vue Example](#vue-example)
+    - [WebSocket Integration (Future)](#websocket-integration-future)
+    - [Rate Limiting](#rate-limiting)
 
 ---
 
@@ -533,3 +556,483 @@ The system includes comprehensive logging for:
    - Enhanced user management tools
    - Audit logging
    - Analytics dashboard
+
+## Frontend Integration Guide
+
+### Authentication Flow Integration
+
+#### 1. User Registration
+
+**Endpoint:** `POST /api/user/create`
+
+**Request:**
+
+```json
+{
+  "username": "testuser",
+  "email": "user@example.com",
+  "password": "securepassword123"
+}
+```
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "content": "User created, verify your email to activate your account"
+}
+```
+
+#### 2. Account Activation
+
+**Endpoint:** `POST /api/user/activate`
+
+**Request:**
+
+```json
+{
+  "code": "123456789",
+  "email": "user@example.com"
+}
+```
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "content": "Account activated successfully"
+}
+```
+
+#### 3. User Login
+
+**Endpoint:** `POST /api/token/`
+
+**Request:**
+
+```json
+{
+  "username": "testuser",
+  "password": "securepassword123"
+}
+```
+
+**Response:**
+
+```json
+{
+  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+  "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+}
+```
+
+#### 4. Token Refresh
+
+**Endpoint:** `POST /api/token/refresh/`
+
+**Request:**
+
+```json
+{
+  "refresh": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+}
+```
+
+**Response:**
+
+```json
+{
+  "access": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+}
+```
+
+### Social Authentication
+
+#### 1. GitHub Authentication
+
+**Endpoint:** `POST /auth/github/`
+
+**Request:**
+
+```json
+{
+  "access_token": "github_oauth_token"
+}
+```
+
+**Response:**
+
+```json
+{
+  "access_token": "jwt_token",
+  "refresh_token": "jwt_refresh_token",
+  "user": {
+    "id": 1,
+    "username": "githubuser",
+    "email": "user@example.com",
+    "first_name": "John",
+    "last_name": "Doe"
+  }
+}
+```
+
+#### 2. Google Authentication
+
+**Endpoint:** `POST /auth/google/`
+
+**Request:**
+
+```json
+{
+  "access_token": "google_oauth_token",
+  "code": "google_auth_code" // Optional, for authorization code flow
+}
+```
+
+**Response:**
+
+```json
+{
+  "access_token": "jwt_token",
+  "refresh_token": "jwt_refresh_token",
+  "user": {
+    "id": 1,
+    "username": "googleuser",
+    "email": "user@gmail.com",
+    "first_name": "John",
+    "last_name": "Doe"
+  }
+}
+```
+
+#### 3. GitLab Authentication
+
+**Endpoint:** `POST /auth/gitlab/`
+
+**Request:**
+
+```json
+{
+  "access_token": "gitlab_oauth_token"
+}
+```
+
+**Response:**
+
+```json
+{
+  "access_token": "jwt_token",
+  "refresh_token": "jwt_refresh_token",
+  "user": {
+    "id": 1,
+    "username": "gitlabuser",
+    "email": "user@example.com",
+    "first_name": "John",
+    "last_name": "Doe"
+  }
+}
+```
+
+### User Management
+
+#### 1. Get User Profile
+
+**Endpoint:** `GET /api/user/me`
+
+**Headers:**
+
+```
+Authorization: Bearer <access_token>
+```
+
+**Response:**
+
+```json
+{
+  "id": 1,
+  "username": "testuser",
+  "email": "user@example.com",
+  "motivation": "Love coding!",
+  "score": 500,
+  "profile": "https://example.com/profile.jpg",
+  "title": "Novice"
+}
+```
+
+#### 2. Update Profile
+
+**Endpoint:** `PATCH /api/user/update/<user_id>`
+
+**Headers:**
+
+```
+Authorization: Bearer <access_token>
+Content-Type: multipart/form-data
+```
+
+**Request:**
+
+```json
+{
+    "username": "newusername",
+    "email": "newemail@example.com",
+    "first_name": "John",
+    "last_name": "Doe",
+    "profile": <file>,
+    "motivation": "New motivation text"
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 1,
+  "username": "newusername",
+  "email": "newemail@example.com",
+  "first_name": "John",
+  "last_name": "Doe",
+  "profile": "https://example.com/new-profile.jpg",
+  "motivation": "New motivation text"
+}
+```
+
+### Social Features
+
+#### 1. Follow User
+
+**Endpoint:** `POST /api/follows/`
+
+**Headers:**
+
+```
+Authorization: Bearer <access_token>
+```
+
+**Request:**
+
+```json
+{
+  "following": 2 // User ID to follow
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 1,
+  "following": 2,
+  "created_at": "2025-02-17T00:28:19.148609Z"
+}
+```
+
+#### 2. Get Followers/Following
+
+**Endpoint:** `GET /api/follows/`
+
+**Headers:**
+
+```
+Authorization: Bearer <access_token>
+```
+
+**Response:**
+
+```json
+[
+  {
+    "id": 1,
+    "following": {
+      "id": 2,
+      "username": "user2",
+      "profile": "https://example.com/profile2.jpg"
+    },
+    "created_at": "2025-02-17T00:28:19.148609Z"
+  }
+]
+```
+
+#### 3. Leaderboard
+
+**Endpoint:** `GET /api/leaderboard/`
+
+**Response:**
+
+```json
+[
+  {
+    "id": 1,
+    "username": "topuser",
+    "score": 1500,
+    "profile": "https://example.com/profile.jpg",
+    "title": "Developer",
+    "motivation": "Coding is life!"
+  }
+]
+```
+
+### Error Handling
+
+All endpoints return appropriate HTTP status codes:
+
+- 200: Success
+- 201: Created
+- 400: Bad Request
+- 401: Unauthorized
+- 403: Forbidden
+- 404: Not Found
+- 500: Server Error
+
+Error responses include detailed messages:
+
+```json
+{
+  "error": "Detailed error message",
+  "status": "error"
+}
+```
+
+### Implementation Examples
+
+#### React Example
+
+```javascript
+// Authentication Service
+const authService = {
+  async login(username, password) {
+    const response = await fetch("/api/token/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+
+    if (!response.ok) throw new Error("Login failed");
+
+    const data = await response.json();
+    localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("refresh_token", data.refresh_token);
+    return data;
+  },
+
+  async googleLogin(accessToken) {
+    const response = await fetch("/auth/google/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ access_token: accessToken }),
+    });
+
+    if (!response.ok) throw new Error("Google login failed");
+
+    const data = await response.json();
+    localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("refresh_token", data.refresh_token);
+    return data;
+  },
+};
+
+// Protected API Service
+const apiService = {
+  async getUserProfile() {
+    const response = await fetch("/api/user/me", {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+      },
+    });
+
+    if (!response.ok) throw new Error("Failed to fetch profile");
+
+    return response.json();
+  },
+};
+```
+
+#### Vue Example
+
+```javascript
+// Auth Store (Pinia)
+export const useAuthStore = defineStore("auth", {
+  state: () => ({
+    user: null,
+    tokens: {
+      access: null,
+      refresh: null,
+    },
+  }),
+
+  actions: {
+    async login(username, password) {
+      try {
+        const response = await fetch("/api/token/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        this.tokens = {
+          access: data.access_token,
+          refresh: data.refresh_token,
+        };
+
+        await this.fetchUser();
+      } catch (error) {
+        console.error("Login failed:", error);
+        throw error;
+      }
+    },
+
+    async fetchUser() {
+      try {
+        const response = await fetch("/api/user/me", {
+          headers: {
+            Authorization: `Bearer ${this.tokens.access}`,
+          },
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        this.user = data;
+      } catch (error) {
+        console.error("Failed to fetch user:", error);
+        throw error;
+      }
+    },
+  },
+});
+```
+
+### WebSocket Integration (Future)
+
+For real-time features like notifications, the system will support WebSocket connections:
+
+```javascript
+const socket = new WebSocket("ws://api.example.com/ws/notifications/");
+
+socket.onmessage = (event) => {
+  const notification = JSON.parse(event.data);
+  // Handle notification
+};
+```
+
+### Rate Limiting
+
+The API implements rate limiting to prevent abuse. Limits are:
+
+- Authentication endpoints: 5 requests per minute
+- Profile updates: 10 requests per minute
+- Social actions: 30 requests per minute
+
+When rate limited, the API returns:
+
+```json
+{
+  "error": "Rate limit exceeded",
+  "retry_after": 30
+}
+```
