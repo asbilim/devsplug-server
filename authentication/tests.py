@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, Client
 from django.urls import reverse
 from rest_framework.test import APIClient, APITestCase
 from rest_framework import status
@@ -11,6 +11,12 @@ from django.conf import settings
 import os
 from PIL import Image
 import io
+from django.contrib.sites.models import Site
+from allauth.socialaccount.models import SocialApp
+from unittest.mock import patch
+import json
+from social_django.models import UserSocialAuth
+import logging
 
 User = get_user_model()
 
@@ -290,3 +296,155 @@ class PasswordResetTests(APITestCase):
             'password': 'newpass123'
         })
         self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+
+class SocialAuthTest(APITestCase):
+    def setUp(self):
+        self.github_data = {
+            'id': 12345,
+            'login': 'githubuser',
+            'email': 'github@example.com',
+            'name': 'GitHub User'
+        }
+        
+        self.google_data = {
+            'id': '67890',
+            'email': 'google@example.com',
+            'given_name': 'Google',
+            'family_name': 'User'
+        }
+        
+        self.gitlab_data = {
+            'id': 11111,
+            'username': 'gitlabuser',
+            'email': 'gitlab@example.com',
+            'name': 'GitLab User'
+        }
+
+        # Set up callback URLs for testing
+        self.callback_urls = {
+            'github': 'http://localhost:8000/accounts/github/login/callback/',
+            'google': 'http://localhost:8000/accounts/google/login/callback/',
+            'gitlab': 'http://localhost:8000/accounts/gitlab/login/callback/'
+        }
+
+        # Set up logging
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Setting up social auth tests")
+
+    def test_github_auth(self):
+        """Test GitHub authentication flow"""
+        self.logger.info("Starting GitHub authentication test")
+        
+        with patch('social_core.backends.github.GithubOAuth2.do_auth') as mock_auth:
+            self.logger.info("Mocking GitHub OAuth2 authentication")
+            
+            user = User.objects.create_user(
+                username=self.github_data['login'],
+                email=self.github_data['email']
+            )
+            self.logger.info(f"Created test user: {user.username}")
+            
+            mock_auth.return_value = user
+            
+            test_data = {
+                'access_token': 'test_token',
+                'callback_url': self.callback_urls['github']
+            }
+            self.logger.info(f"Sending request with data: {test_data}")
+            
+            response = self.client.post(reverse('github_auth'), test_data)
+            
+            self.logger.info(f"Response status: {response.status_code}")
+            self.logger.info(f"Response data: {response.data}")
+            
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('access_token', response.data)
+            self.assertIn('user', response.data)
+            self.assertEqual(response.data['user']['email'], self.github_data['email'])
+            
+            self.logger.info("GitHub authentication test completed successfully")
+
+    def test_google_auth(self):
+        """Test Google authentication flow"""
+        self.logger.info("Starting Google authentication test")
+        
+        with patch('social_core.backends.google.GoogleOAuth2.do_auth') as mock_auth:
+            self.logger.info("Mocking Google OAuth2 authentication")
+            
+            # Create a user with Google-specific data format
+            user = User.objects.create_user(
+                username=f"google_{self.google_data['id']}",
+                email=self.google_data['email'],
+                first_name=self.google_data['given_name'],
+                last_name=self.google_data['family_name']
+            )
+            
+            # Mock the social_user attribute
+            class MockSocialUser:
+                extra_data = {
+                    'given_name': self.google_data['given_name'],
+                    'family_name': self.google_data['family_name']
+                }
+            
+            user.social_user = MockSocialUser()
+            mock_auth.return_value = user
+            
+            # In test environment, we'll pass the access token directly
+            test_data = {
+                'access_token': 'test_token',  # Remove code, just use access_token for test
+            }
+            
+            response = self.client.post(reverse('google_auth'), test_data)
+            
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('access_token', response.data)
+            self.assertIn('user', response.data)
+            self.assertEqual(response.data['user']['email'], self.google_data['email'])
+            self.assertEqual(response.data['user']['first_name'], self.google_data['given_name'])
+            self.assertEqual(response.data['user']['last_name'], self.google_data['family_name'])
+            
+            self.logger.info("Google authentication test completed successfully")
+
+    def test_gitlab_auth(self):
+        """Test GitLab authentication flow"""
+        with patch('social_core.backends.gitlab.GitLabOAuth2.do_auth') as mock_auth:
+            mock_auth.return_value = User.objects.create_user(
+                username=self.gitlab_data['username'],
+                email=self.gitlab_data['email']
+            )
+            
+            response = self.client.post(reverse('gitlab_auth'), {
+                'access_token': 'test_token',
+                'callback_url': self.callback_urls['gitlab']
+            })
+            
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('access_token', response.data)
+            self.assertIn('user', response.data)
+            self.assertEqual(response.data['user']['email'], self.gitlab_data['email'])
+
+    def test_invalid_token(self):
+        """Test authentication with invalid token"""
+        response = self.client.post(reverse('github_auth'), {
+            'access_token': 'invalid_token'
+        })
+        self.assertEqual(response.status_code, 400)
+
+    def test_duplicate_email(self):
+        """Test handling of duplicate email addresses"""
+        User.objects.create_user(
+            username='existing',
+            email=self.github_data['email'],
+            password='testpass123'
+        )
+        
+        with patch('social_core.backends.github.GithubOAuth2.do_auth') as mock_auth:
+            mock_auth.side_effect = Exception('Email already exists')
+            
+            response = self.client.post(reverse('github_auth'), {
+                'access_token': 'test_token'
+            })
+            
+            self.assertEqual(response.status_code, 400)
+            self.assertIn('error', response.data)
