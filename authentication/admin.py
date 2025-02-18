@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from unfold.admin import ModelAdmin
-from .models import User, VerificationCode, ResetCode, Follow
+from .models import User, Follow
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin, ModelAdmin):
@@ -19,19 +19,6 @@ class CustomUserAdmin(UserAdmin, ModelAdmin):
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )
     ordering = ['-date_joined']
-
-@admin.register(VerificationCode)
-class VerificationCodeAdmin(ModelAdmin):
-    list_display = ['user', 'code', 'created_at', 'is_used']
-    list_filter = ['is_used', 'created_at']
-    search_fields = ['user__username', 'code']
-    readonly_fields = ['created_at']
-
-@admin.register(ResetCode)
-class ResetCodeAdmin(ModelAdmin):
-    list_display = ['user', 'code', 'can_reset']
-    list_filter = ['can_reset']
-    search_fields = ['user__username', 'code']
 
 @admin.register(Follow)
 class FollowAdmin(ModelAdmin):

@@ -56,6 +56,8 @@ class CommentViewSet(ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):  # Handling swagger schema generation
+            return Comment.objects.none()
         return Comment.objects.filter(solution_id=self.kwargs['solution_pk'])
 
     def perform_create(self, serializer):
@@ -67,6 +69,8 @@ class LikeViewSet(ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):  # Handling swagger schema generation
+            return Like.objects.none()
         return Like.objects.filter(solution_id=self.kwargs['solution_pk'])
 
     def perform_create(self, serializer):
@@ -78,4 +82,6 @@ class DislikeViewSet(ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):  # Handling swagger schema generation
+            return Dislike.objects.none()
         return Dislike.objects.filter(solution_id=self.kwargs['solution_pk'])
