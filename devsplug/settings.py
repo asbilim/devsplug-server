@@ -520,3 +520,17 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_AUTH_EXTRA_ARGUMENTS = {
     'prompt': 'select_account',
     'hd': 'example.com'  # If you need to restrict to specific domains
 }
+
+# Email Verification Settings
+EMAIL_VERIFICATION_TIMEOUT = 48 * 3600  # 48 hours in seconds
+PASSWORD_RESET_TIMEOUT = 24 * 3600  # 24 hours in seconds
+
+# Site URL for email links
+SITE_URL = os.getenv('SITE_URL', 'http://localhost:3000')
+
+# Email Template Settings
+EMAIL_TEMPLATE_DIR = os.path.join(BASE_DIR, 'authentication/templates/emails')
+
+# Update email settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+DEFAULT_FROM_EMAIL = 'Devsplug <noreply@devsplug.com>'

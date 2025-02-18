@@ -4,12 +4,10 @@ from .models import User, Follow
 
 
 class UserSerializer(serializers.ModelSerializer):
-    # Removed legacy problems field:
-    # problems = ProblemSerializer(many=True, read_only=True)
-    
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'motivation', 'score', 'profile', 'title']
+        fields = ['id', 'username', 'motivation', 'score', 'profile', 'title','email']
 
 class LeaderSerializer(serializers.ModelSerializer):
     class Meta:

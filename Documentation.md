@@ -74,6 +74,12 @@
       - [Vue Example](#vue-example)
     - [WebSocket Integration (Future)](#websocket-integration-future)
     - [Rate Limiting](#rate-limiting)
+  - [Email Verification System](#email-verification-system)
+    - [Email Templates](#email-templates)
+    - [Verification Process](#verification-process)
+    - [Password Reset](#password-reset)
+    - [Security Features](#security-features)
+    - [API Endpoints](#api-endpoints)
 
 ---
 
@@ -1036,3 +1042,184 @@ When rate limited, the API returns:
   "retry_after": 30
 }
 ```
+
+## Email Verification System
+
+The system now uses a secure JWT-based email verification and password reset system:
+
+### Email Templates
+
+- Terminal-themed HTML emails using Geist Mono font
+- Responsive design with fallback to plain text
+- Secure token-based verification links
+
+### Verification Process
+
+1. User registers
+2. System sends verification email with JWT token
+3. User clicks link: `/en/auth/verify-email?token=<jwt_token>`
+4. Frontend verifies token via API
+5. Account activated on success
+
+### Password Reset
+
+1. User requests password reset
+2. System sends reset email with JWT token
+3. User clicks link: `/en/auth/reset-password?token=<jwt_token>`
+4. Frontend verifies token and allows password change
+
+### Security Features
+
+- JWT tokens with expiration (48h for verification, 24h for reset)
+- Signed tokens prevent tampering
+- One-time use enforcement
+- Rate limiting on requests
+- Secure token validation
+
+### API Endpoints
+
+```http
+GET /verify-email/?token=<jwt_token>
+Response: {
+    "status": "success",
+    "content": "Email verified successfully"
+}
+
+POST /password-reset/
+Request: {
+    "email": "user@example.com"
+}
+Response: {
+    "status": "success",
+    "content": "Password reset instructions sent"
+}
+
+POST /password-reset/confirm/
+Request: {
+    "token": "<jwt_token>",
+    "password": "new_password"
+}
+Response: {
+    "status": "success",
+    "content": "Password reset successfully"
+}
+```
+
+## Authentication System
+
+### Email Verification
+
+The system uses JWT-based email verification with secure token handling.
+
+#### Endpoints
+
+1. **Create Account**
+
+```http
+POST /users/api/user/create
+Request:
+{
+    "username": "string",
+    "email": "user@example.com",
+    "password": "string"
+}
+Response: {
+    "status": "success",
+    "content": "User created. Please check your email to verify your account."
+}
+```
+
+2. **Verify Email**
+
+```http
+POST /users/api/user/activate
+Request:
+{
+    "token": "jwt_token_from_email"
+}
+Response: {
+    "status": "success",
+    "content": "Email verified successfully"
+}
+```
+
+3. **Request Password Reset**
+
+```http
+POST /users/api/user/password/apply
+Request:
+{
+    "email": "user@example.com"
+}
+Response: {
+    "status": "success",
+    "content": "If an account exists with this email, password reset instructions have been sent."
+}
+```
+
+4. **Reset Password**
+
+```http
+POST /users/password-reset/confirm/
+Request:
+{
+    "token": "jwt_token_from_email",
+    "password": "new_password"
+}
+Response: {
+    "status": "success",
+    "content": "Password reset successfully"
+}
+```
+
+### Security Features
+
+- JWT tokens with expiration (48h for verification, 24h for reset)
+- Secure token handling through POST requests
+- Email verification required for account activation
+- Password reset tokens are single-use
+- Rate limiting on all authentication endpoints
+- CSRF protection enabled
+- Secure password hashing using Django's default hasher
+- Email notifications for security-related actions
+
+### Email Templates
+
+The system uses professionally designed, responsive email templates with:
+
+- Terminal theme using Geist Mono font
+- Clear call-to-action buttons
+- Secure token handling
+- Mobile-friendly design
+- Plain text fallback
+- Security warnings and instructions
+
+### Frontend Routes
+
+The system expects these frontend routes for handling authentication:
+
+- Email Verification: `/en/auth/verify-email/token/{token}`
+- Password Reset: `/en/auth/reset-password/token/{token}`
+
+### Environment Configuration
+
+Required environment variables:
+
+```env
+SITE_URL=http://localhost:3000  # Frontend URL
+EMAIL_HOST=smtp.example.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=noreply@example.com
+EMAIL_HOST_PASSWORD=your_password
+JWT_SECRET_KEY=your_secret_key
+```
+
+### Token Security
+
+- Tokens are JWT-based with payload encryption
+- Include user ID and email for verification
+- Have configurable expiration times
+- Are cryptographically signed
+- Cannot be reused after verification/reset
+- Are validated against the current user state

@@ -14,4 +14,36 @@ class UserSerializer(serializers.ModelSerializer):
         return obj.followers.count()
     
     def get_following_count(self, obj):
-        return obj.following.count() 
+        return obj.following.count()
+
+# Add these serializers for deprecated endpoints
+class DeprecatedActivateSerializer(serializers.Serializer):
+    code = serializers.CharField()
+
+class DeprecatedResetSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+class DeprecatedResetVerifySerializer(serializers.Serializer):
+    code = serializers.CharField()
+
+class DeprecatedResetChangeSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    password = serializers.CharField()
+
+class DeprecatedClaimCodeSerializer(serializers.Serializer):
+    code = serializers.CharField()
+
+class UserActivateSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True)
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    token = serializers.CharField(required=True)
+    password = serializers.CharField(
+        required=True,
+        min_length=8,
+        write_only=True,
+        style={'input_type': 'password'}
+    ) 
