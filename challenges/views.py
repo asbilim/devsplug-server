@@ -7,8 +7,9 @@ from django.db.models import Q
 from rest_framework.pagination import PageNumberPagination
 import logging
 import traceback
+from django.utils import timezone
 
-from .models import Challenge, Solution, Comment, Like, Dislike, Category
+from .models import Challenge, Solution, Comment, Like, Dislike, Category, UserChallenge
 from .serializer import (
     ChallengeSerializer,
     ChallengeListSerializer,
@@ -18,7 +19,8 @@ from .serializer import (
     LikeSerializer,
     DislikeSerializer,
     CategorySerializer,
-    UserProgressSerializer
+    UserProgressSerializer,
+    UserChallengeSerializer
 )
 
 logger = logging.getLogger(__name__)
@@ -92,6 +94,64 @@ class ChallengeViewSet(ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=True, methods=['post'], url_path='subscribe')
+    def subscribe(self, request, slug=None):
+        try:
+            challenge = self.get_object()
+            user = request.user
+            
+            if not user.is_authenticated:
+                return Response(
+                    {"error": "Authentication required"}, 
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            subscription, created = UserChallenge.objects.get_or_create(
+                user=user,
+                challenge=challenge,
+                defaults={'is_subscribed': True}
+            )
+            
+            if not created and not subscription.is_subscribed:
+                subscription.is_subscribed = True
+                subscription.save()
+            
+            serializer = UserChallengeSerializer(subscription)
+            status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+            return Response(serializer.data, status=status_code)
+            
+        except Exception as e:
+            logger.error(f"Error in subscribe action: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "Unable to process subscription"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['post'])
+    def unsubscribe(self, request, slug=None):
+        challenge = self.get_object()
+        user = request.user
+        
+        if not user.is_authenticated:
+            return Response(
+                {"error": "Authentication required"}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        try:
+            subscription = UserChallenge.objects.get(
+                user=user,
+                challenge=challenge
+            )
+            subscription.is_subscribed = False
+            subscription.save()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except UserChallenge.DoesNotExist:
+            return Response(
+                {'detail': 'Not subscribed to this challenge.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
     def retrieve(self, request, *args, **kwargs):
         try:
             instance = self.get_object()
@@ -162,6 +222,17 @@ class DislikeViewSet(ModelViewSet):
         if getattr(self, 'swagger_fake_view', False):  # Handling swagger schema generation
             return Dislike.objects.none()
         return Dislike.objects.filter(solution_id=self.kwargs['solution_pk'])
+
+class UserChallengeViewSet(ReadOnlyModelViewSet):
+    serializer_class = UserChallengeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = 'challenge__slug'
+    
+    def get_queryset(self):
+        return UserChallenge.objects.filter(
+            user=self.request.user,
+            is_subscribed=True
+        ).select_related('challenge').order_by('-subscribed_at')
 
 def your_view(request):
     try:

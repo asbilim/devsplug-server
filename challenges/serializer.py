@@ -11,7 +11,8 @@ from .models import (
     Like,
     Dislike,
     Attachment,
-    Category
+    Category,
+    UserChallenge
 )
 
 class UserSerializer(serializers.ModelSerializer):
@@ -100,7 +101,7 @@ class SolutionSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Solution
-        fields = ['id', 'user', 'challenge', 'code', 'language', 
+        fields = ['id', 'user', 'challenge', 'code', 'documentation', 'language', 
                  'status', 'created_at', 'is_private']
         read_only_fields = ['user', 'status']
 
@@ -128,14 +129,44 @@ class DislikeSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'created_at']
         read_only_fields = ['user', 'solution']
 
+class UserChallengeSerializer(serializers.ModelSerializer):
+    challenge = ChallengeListSerializer(read_only=True)
+    challenge_id = serializers.PrimaryKeyRelatedField(
+        source='challenge',
+        queryset=Challenge.objects.all(),
+        write_only=True
+    )
+    attempts = serializers.SerializerMethodField()
+    successful_attempts = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = UserChallenge
+        fields = [
+            'id', 'challenge', 'challenge_id', 'is_subscribed', 
+            'subscribed_at', 'last_attempted_at', 'completed', 
+            'completed_at', 'attempts', 'successful_attempts'
+        ]
+        read_only_fields = [
+            'subscribed_at', 'last_attempted_at', 
+            'completed', 'completed_at'
+        ]
+    
+    def get_attempts(self, obj):
+        return obj.get_attempts()
+    
+    def get_successful_attempts(self, obj):
+        return obj.get_successful_attempts()
+
 class UserProgressSerializer(serializers.Serializer):
     total_challenges = serializers.IntegerField()
     completed_challenges = serializers.IntegerField()
     total_points = serializers.IntegerField()
     completion_by_category = serializers.DictField()
     recent_solutions = serializers.ListField()
+    subscribed_challenges = UserChallengeSerializer(many=True, source='subscribed_challenges.all')
     
     def to_representation(self, instance):
+        data = super().to_representation(instance)
         user = instance
         solutions = Solution.objects.filter(user=user)
         completed = solutions.filter(status='accepted')
@@ -167,10 +198,23 @@ class UserProgressSerializer(serializers.Serializer):
             'submitted_at': sol.created_at
         } for sol in recent]
         
+        # Add subscribed challenges data
+        subscribed = UserChallenge.objects.filter(
+            user=user,
+            is_subscribed=True
+        ).select_related('challenge').order_by('-subscribed_at')
+        
+        data['subscribed_challenges'] = UserChallengeSerializer(
+            subscribed, 
+            many=True,
+            context=self.context
+        ).data
+        
         return {
             'total_challenges': Challenge.objects.count(),
             'completed_challenges': completed.count(),
             'total_points': sum(sol.challenge.points for sol in completed),
             'completion_by_category': completion_by_category,
-            'recent_solutions': recent_solutions
+            'recent_solutions': recent_solutions,
+            'subscribed_challenges': data['subscribed_challenges']
         }

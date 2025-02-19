@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'taggit',
     'drf_yasg',
     'django_crontab',
+    'django_extensions',  # Django Extensions
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
@@ -598,3 +599,54 @@ EMAIL_TEMPLATE_DIR = os.path.join(BASE_DIR, 'authentication/templates/emails')
 # Update email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 DEFAULT_FROM_EMAIL = 'Devsplug <noreply@devsplug.com>'
+
+# Django Extensions Settings
+SHELL_PLUS = "ipython"
+
+SHELL_PLUS_PRINT_SQL = True
+
+SHELL_PLUS_IMPORTS = [
+    'from django.core.cache import cache',
+    'from django.conf import settings',
+    'from django.contrib.auth.models import User',
+    'from django.db.models import Avg, Case, Count, F, Max, Min, Prefetch, Q, Sum, When',
+    'from django.utils import timezone',
+]
+
+GRAPH_MODELS = {
+    'all_applications': True,
+    'group_models': True,
+}
+
+# Notebook settings for Django Extensions
+NOTEBOOK_ARGUMENTS = [
+    '--ip', '0.0.0.0',
+    '--port', '8888',
+    '--allow-root',
+    '--no-browser',
+]
+
+# Django Extensions settings for URL command
+SHELL_PLUS_MODEL_ALIASES = {
+    'auth': {
+        'User': 'U',
+    },
+}
+
+# Logging configuration for Django Extensions
+if DEBUG:
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+            },
+        },
+        'loggers': {
+            'django_extensions': {
+                'handlers': ['console'],
+                'level': 'INFO',
+            },
+        },
+    }

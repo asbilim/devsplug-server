@@ -95,6 +95,7 @@ class Solution(models.Model):
     user = models.ForeignKey('authentication.User', on_delete=models.CASCADE)
     challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE)
     code = models.TextField()
+    documentation = models.TextField(blank=True, help_text="Documentation for the solution")
     language = models.CharField(max_length=50)
     status = models.CharField(
         max_length=20,
@@ -142,4 +143,30 @@ class Dislike(models.Model):
 
     def __str__(self):
         return f"{self.user.username} disliked solution {self.solution.id}"
+
+class UserChallenge(models.Model):
+    user = models.ForeignKey('authentication.User', on_delete=models.CASCADE, related_name='subscribed_challenges')
+    challenge = models.ForeignKey(Challenge, on_delete=models.CASCADE, related_name='subscribed_users')
+    is_subscribed = models.BooleanField(default=True)
+    subscribed_at = models.DateTimeField(auto_now_add=True)
+    last_attempted_at = models.DateTimeField(null=True, blank=True)
+    completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ('user', 'challenge')
+        ordering = ['-subscribed_at']
+
+    def __str__(self):
+        return f"{self.user.username}'s subscription to {self.challenge.title}"
+
+    def get_attempts(self):
+        return Solution.objects.filter(user=self.user, challenge=self.challenge).count()
+
+    def get_successful_attempts(self):
+        return Solution.objects.filter(
+            user=self.user, 
+            challenge=self.challenge,
+            status='accepted'
+        ).count()
     

@@ -24,6 +24,7 @@
     - [4.1 Challenge Categories and Learning Paths](#41-challenge-categories-and-learning-paths)
     - [4.2 Challenge Attachments](#42-challenge-attachments)
     - [4.3 User Progress Tracking](#43-user-progress-tracking)
+    - [4.4 Challenge Subscriptions and Progress Tracking](#44-challenge-subscriptions-and-progress-tracking)
   - [5. API Endpoints and Workflow](#5-api-endpoints-and-workflow)
     - [Authentication Endpoints (unchanged)](#authentication-endpoints-unchanged)
     - [Challenge and Social Endpoints](#challenge-and-social-endpoints)
@@ -182,6 +183,31 @@ The refactoring preserves and enhances all existing social functionalities:
 - **Comments:** A dedicated **Comment** model supports posting and replying to comments on solutions, fostering richer interactions.
 - **Likes/Dislikes:** Separate **Like** and **Dislike** models allow users to express approval or disapproval of submitted solutions.
 - **Follow/Unfollow:** A **Follow** model offers users the capability to follow or unfollow others, strengthening community engagement.
+- **Challenge Subscriptions:** Users can now subscribe to challenges they're interested in and track their progress.
+
+### 4.4 Challenge Subscriptions and Progress Tracking
+
+The system now includes comprehensive challenge subscription and progress tracking:
+
+- **Challenge Subscriptions**
+
+  - Users can subscribe to challenges they're interested in
+  - Track subscription status and dates
+  - View all subscribed challenges in their dashboard
+  - Unsubscribe when no longer interested
+
+- **Solution Documentation**
+
+  - Each solution can include detailed documentation
+  - Users can explain their approach and thought process
+  - Documentation helps others learn from solutions
+  - Supports knowledge sharing within the community
+
+- **Progress Tracking**
+  - Track attempts per challenge
+  - Monitor successful vs. total attempts
+  - View completion status and dates
+  - See last attempt timestamps
 
 ### 4.1 Challenge Categories and Learning Paths
 
@@ -250,36 +276,21 @@ Enhanced user progress tracking:
 - **Comments:** Create, retrieve, and reply to comments on solutions.
 - **Reactions:** Endpoints to add or remove likes/dislikes.
 - **Follow System:** Endpoints to follow or unfollow a user.
-
-_Example Workflow:_
-
-1. **User Browses Challenges:**  
-   The user fetches a list of challenges.
-2. **User Submits a Solution:**  
-   With both code and documentation.
-3. **Solution Review:**  
-   An admin or automated evaluation marks the solution as accepted or rejected.
-4. **Points and Title Update:**  
-   If accepted, points are awarded and the user's title is updated.
-5. **Social Interaction:**  
-   Other users can comment on, like/dislike, or follow contributors to engage with the community.
-
-### Challenge Management
+- **Challenge Management**
 
 ```http
-# Categories
-GET /api/categories/                    # List all categories
-GET /api/categories/{slug}/            # Get category details
-
-# Challenges
+# Challenge Management
 GET /api/challenges/                    # List all challenges
-GET /api/challenges/?category={slug}    # Filter by category
-GET /api/challenges/?difficulty={level} # Filter by difficulty
-GET /api/challenges/?tags={tag1,tag2}   # Filter by tags
 GET /api/challenges/{slug}/            # Get challenge details
+POST /api/challenges/{slug}/subscribe   # Subscribe to a challenge
+POST /api/challenges/{slug}/unsubscribe # Unsubscribe from a challenge
 
-# Progress
-GET /api/challenges/my_progress/        # Get user progress
+# Subscriptions
+GET /api/subscriptions/                # List user's subscribed challenges
+
+# Solutions
+POST /api/challenges/{slug}/solutions/  # Submit a solution with documentation
+GET /api/challenges/{slug}/solutions/   # List solutions for a challenge
 ```
 
 ### Challenge Response Format
@@ -349,6 +360,52 @@ GET /api/challenges/my_progress/        # Get user progress
 }
 ```
 
+### Subscription Response Format
+
+```json
+{
+  "id": 1,
+  "challenge": {
+    "title": "Python Variables",
+    "slug": "python-variables",
+    "difficulty": "easy",
+    "points": 10,
+    "category": {
+      "name": "Python Mastery",
+      "slug": "python-mastery"
+    }
+  },
+  "is_subscribed": true,
+  "subscribed_at": "2024-02-19T12:00:00Z",
+  "last_attempted_at": "2024-02-19T14:30:00Z",
+  "completed": true,
+  "completed_at": "2024-02-19T14:30:00Z",
+  "attempts": 3,
+  "successful_attempts": 1
+}
+```
+
+### Solution Response Format
+
+```json
+{
+  "id": 1,
+  "user": {
+    "id": 1,
+    "username": "johndoe",
+    "profile": "https://example.com/profile.jpg",
+    "title": "Developer"
+  },
+  "challenge": 1,
+  "code": "def solution():\n    return 'Hello World'",
+  "documentation": "This solution uses a simple function that returns a greeting...",
+  "language": "python",
+  "status": "accepted",
+  "created_at": "2024-02-19T12:00:00Z",
+  "is_private": false
+}
+```
+
 ---
 
 ## 6. Implementation Details
@@ -359,6 +416,14 @@ GET /api/challenges/my_progress/        # Get user progress
 
 - **Challenge Model:** Defines challenge properties and manages attachments and tags.
 - **Solution Model:** Manages solution submissions and includes a documentation field. When a solution is accepted, points are auto-awarded.
+- **UserChallenge Model:** Tracks user subscriptions to challenges and maintains progress information.
+
+_Key Features:_
+
+- Solution documentation support
+- Challenge subscription tracking
+- Progress monitoring
+- Multiple attempts tracking
 
 _Refer to:_ `challenges/models.py`
 
@@ -878,486 +943,3 @@ The system includes comprehensive logging for:
   }
 }
 ```
-
-### User Management
-
-#### 1. Get User Profile
-
-**Endpoint:** `GET /api/user/me`
-
-**Headers:**
-
-```
-Authorization: Bearer <access_token>
-```
-
-**Response:**
-
-```json
-{
-  "id": 1,
-  "username": "testuser",
-  "email": "user@example.com",
-  "motivation": "Love coding!",
-  "score": 500,
-  "profile": "https://example.com/profile.jpg",
-  "title": "Novice"
-}
-```
-
-#### 2. Update Profile
-
-**Endpoint:** `PATCH /api/user/update/<user_id>`
-
-**Headers:**
-
-```
-Authorization: Bearer <access_token>
-Content-Type: multipart/form-data
-```
-
-**Request:**
-
-```json
-{
-    "username": "newusername",
-    "email": "newemail@example.com",
-    "first_name": "John",
-    "last_name": "Doe",
-    "profile": <file>,
-    "motivation": "New motivation text"
-}
-```
-
-**Response:**
-
-```json
-{
-  "id": 1,
-  "username": "newusername",
-  "email": "newemail@example.com",
-  "first_name": "John",
-  "last_name": "Doe",
-  "profile": "https://example.com/new-profile.jpg",
-  "motivation": "New motivation text"
-}
-```
-
-### Social Features
-
-#### 1. Follow User
-
-**Endpoint:** `POST /api/follows/`
-
-**Headers:**
-
-```
-Authorization: Bearer <access_token>
-```
-
-**Request:**
-
-```json
-{
-  "following": 2 // User ID to follow
-}
-```
-
-**Response:**
-
-```json
-{
-  "id": 1,
-  "following": 2,
-  "created_at": "2025-02-17T00:28:19.148609Z"
-}
-```
-
-#### 2. Get Followers/Following
-
-**Endpoint:** `GET /api/follows/`
-
-**Headers:**
-
-```
-Authorization: Bearer <access_token>
-```
-
-**Response:**
-
-```json
-[
-  {
-    "id": 1,
-    "following": {
-      "id": 2,
-      "username": "user2",
-      "profile": "https://example.com/profile2.jpg"
-    },
-    "created_at": "2025-02-17T00:28:19.148609Z"
-  }
-]
-```
-
-#### 3. Leaderboard
-
-**Endpoint:** `GET /api/leaderboard/`
-
-**Response:**
-
-```json
-[
-  {
-    "id": 1,
-    "username": "topuser",
-    "score": 1500,
-    "profile": "https://example.com/profile.jpg",
-    "title": "Developer",
-    "motivation": "Coding is life!"
-  }
-]
-```
-
-### Error Handling
-
-All endpoints return appropriate HTTP status codes:
-
-- 200: Success
-- 201: Created
-- 400: Bad Request
-- 401: Unauthorized
-- 403: Forbidden
-- 404: Not Found
-- 500: Server Error
-
-Error responses include detailed messages:
-
-```json
-{
-  "error": "Detailed error message",
-  "status": "error"
-}
-```
-
-### Implementation Examples
-
-#### React Example
-
-```javascript
-// Authentication Service
-const authService = {
-  async login(username, password) {
-    const response = await fetch("/api/token/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-
-    if (!response.ok) throw new Error("Login failed");
-
-    const data = await response.json();
-    localStorage.setItem("access_token", data.access_token);
-    localStorage.setItem("refresh_token", data.refresh_token);
-    return data;
-  },
-
-  async googleLogin(accessToken) {
-    const response = await fetch("/auth/google/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ access_token: accessToken }),
-    });
-
-    if (!response.ok) throw new Error("Google login failed");
-
-    const data = await response.json();
-    localStorage.setItem("access_token", data.access_token);
-    localStorage.setItem("refresh_token", data.refresh_token);
-    return data;
-  },
-};
-
-// Protected API Service
-const apiService = {
-  async getUserProfile() {
-    const response = await fetch("/api/user/me", {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-      },
-    });
-
-    if (!response.ok) throw new Error("Failed to fetch profile");
-
-    return response.json();
-  },
-};
-```
-
-#### Vue Example
-
-```javascript
-// Auth Store (Pinia)
-export const useAuthStore = defineStore("auth", {
-  state: () => ({
-    user: null,
-    tokens: {
-      access: null,
-      refresh: null,
-    },
-  }),
-
-  actions: {
-    async login(username, password) {
-      try {
-        const response = await fetch("/api/token/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password }),
-        });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
-
-        this.tokens = {
-          access: data.access_token,
-          refresh: data.refresh_token,
-        };
-
-        await this.fetchUser();
-      } catch (error) {
-        console.error("Login failed:", error);
-        throw error;
-      }
-    },
-
-    async fetchUser() {
-      try {
-        const response = await fetch("/api/user/me", {
-          headers: {
-            Authorization: `Bearer ${this.tokens.access}`,
-          },
-        });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
-
-        this.user = data;
-      } catch (error) {
-        console.error("Failed to fetch user:", error);
-        throw error;
-      }
-    },
-  },
-});
-```
-
-### WebSocket Integration (Future)
-
-For real-time features like notifications, the system will support WebSocket connections:
-
-```javascript
-const socket = new WebSocket("ws://api.example.com/ws/notifications/");
-
-socket.onmessage = (event) => {
-  const notification = JSON.parse(event.data);
-  // Handle notification
-};
-```
-
-### Rate Limiting
-
-The API implements rate limiting to prevent abuse. Limits are:
-
-- Authentication endpoints: 5 requests per minute
-- Profile updates: 10 requests per minute
-- Social actions: 30 requests per minute
-
-When rate limited, the API returns:
-
-```json
-{
-  "error": "Rate limit exceeded",
-  "retry_after": 30
-}
-```
-
-## Email Verification System
-
-The system now uses a secure JWT-based email verification and password reset system:
-
-### Email Templates
-
-- Terminal-themed HTML emails using Geist Mono font
-- Responsive design with fallback to plain text
-- Secure token-based verification links
-
-### Verification Process
-
-1. User registers
-2. System sends verification email with JWT token
-3. User clicks link: `/en/auth/verify-email?token=<jwt_token>`
-4. Frontend verifies token via API
-5. Account activated on success
-
-### Password Reset
-
-1. User requests password reset
-2. System sends reset email with JWT token
-3. User clicks link: `/en/auth/reset-password?token=<jwt_token>`
-4. Frontend verifies token and allows password change
-
-### Security Features
-
-- JWT tokens with expiration (48h for verification, 24h for reset)
-- Signed tokens prevent tampering
-- One-time use enforcement
-- Rate limiting on requests
-- Secure token validation
-
-### API Endpoints
-
-```http
-GET /verify-email/?token=<jwt_token>
-Response: {
-    "status": "success",
-    "content": "Email verified successfully"
-}
-
-POST /password-reset/
-Request: {
-    "email": "user@example.com"
-}
-Response: {
-    "status": "success",
-    "content": "Password reset instructions sent"
-}
-
-POST /password-reset/confirm/
-Request: {
-    "token": "<jwt_token>",
-    "password": "new_password"
-}
-Response: {
-    "status": "success",
-    "content": "Password reset successfully"
-}
-```
-
-## Authentication System
-
-### Email Verification
-
-The system uses JWT-based email verification with secure token handling.
-
-#### Endpoints
-
-1. **Create Account**
-
-```http
-POST /users/api/user/create
-Request:
-{
-    "username": "string",
-    "email": "user@example.com",
-    "password": "string"
-}
-Response: {
-    "status": "success",
-    "content": "User created. Please check your email to verify your account."
-}
-```
-
-2. **Verify Email**
-
-```http
-POST /users/api/user/activate
-Request:
-{
-    "token": "jwt_token_from_email"
-}
-Response: {
-    "status": "success",
-    "content": "Email verified successfully"
-}
-```
-
-3. **Request Password Reset**
-
-```http
-POST /users/api/user/password/apply
-Request:
-{
-    "email": "user@example.com"
-}
-Response: {
-    "status": "success",
-    "content": "If an account exists with this email, password reset instructions have been sent."
-}
-```
-
-4. **Reset Password**
-
-```http
-POST /users/password-reset/confirm/
-Request:
-{
-    "token": "jwt_token_from_email",
-    "password": "new_password"
-}
-Response: {
-    "status": "success",
-    "content": "Password reset successfully"
-}
-```
-
-### Security Features
-
-- JWT tokens with expiration (48h for verification, 24h for reset)
-- Secure token handling through POST requests
-- Email verification required for account activation
-- Password reset tokens are single-use
-- Rate limiting on all authentication endpoints
-- CSRF protection enabled
-- Secure password hashing using Django's default hasher
-- Email notifications for security-related actions
-
-### Email Templates
-
-The system uses professionally designed, responsive email templates with:
-
-- Terminal theme using Geist Mono font
-- Clear call-to-action buttons
-- Secure token handling
-- Mobile-friendly design
-- Plain text fallback
-- Security warnings and instructions
-
-### Frontend Routes
-
-The system expects these frontend routes for handling authentication:
-
-- Email Verification: `/en/auth/verify-email/token/{token}`
-- Password Reset: `/en/auth/reset-password/token/{token}`
-
-### Environment Configuration
-
-Required environment variables:
-
-```env
-SITE_URL=http://localhost:3000  # Frontend URL
-EMAIL_HOST=smtp.example.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_HOST_USER=noreply@example.com
-EMAIL_HOST_PASSWORD=your_password
-JWT_SECRET_KEY=your_secret_key
-```
-
-### Token Security
-
-- Tokens are JWT-based with payload encryption
-- Include user ID and email for verification
-- Have configurable expiration times
-- Are cryptographically signed
-- Cannot be reused after verification/reset
-- Are validated against the current user state
