@@ -21,6 +21,9 @@
     - [4.1 Consolidated Challenge and Submission System](#41-consolidated-challenge-and-submission-system)
     - [4.2 Improved User Management](#42-improved-user-management)
     - [4.3 Enhanced Social Features](#43-enhanced-social-features)
+    - [4.1 Challenge Categories and Learning Paths](#41-challenge-categories-and-learning-paths)
+    - [4.2 Challenge Attachments](#42-challenge-attachments)
+    - [4.3 User Progress Tracking](#43-user-progress-tracking)
   - [5. API Endpoints and Workflow](#5-api-endpoints-and-workflow)
     - [Authentication Endpoints (unchanged)](#authentication-endpoints-unchanged)
     - [Challenge and Social Endpoints](#challenge-and-social-endpoints)
@@ -180,6 +183,56 @@ The refactoring preserves and enhances all existing social functionalities:
 - **Likes/Dislikes:** Separate **Like** and **Dislike** models allow users to express approval or disapproval of submitted solutions.
 - **Follow/Unfollow:** A **Follow** model offers users the capability to follow or unfollow others, strengthening community engagement.
 
+### 4.1 Challenge Categories and Learning Paths
+
+The system now supports organized learning paths through categories:
+
+- **Categories**: Challenges are grouped into categories (e.g., "Python Mastery", "Web Development")
+- **Prerequisites**: Challenges can have prerequisites to ensure proper learning progression
+- **Progress Tracking**: Users can track their progress in each category
+
+#### Category Features
+
+- Unique slug for URL-friendly paths
+- Icon support (Font Awesome)
+- Order for custom sorting
+- Category statistics
+  - Total challenges
+  - Average difficulty
+  - Total solutions submitted
+
+### 4.2 Challenge Attachments
+
+Challenges can now include attachments:
+
+- **File Types**:
+
+  - Templates (`template`)
+  - Test Cases (`test_case`)
+  - Datasets (`dataset`)
+  - Additional Resources
+
+- **Attachment Features**:
+  - File upload and storage
+  - Description and type categorization
+  - Secure access control
+  - Preview in admin interface
+
+### 4.3 User Progress Tracking
+
+Enhanced user progress tracking:
+
+- **Overall Progress**:
+
+  - Total challenges completed
+  - Total points earned
+  - Recent solutions
+
+- **Category Progress**:
+  - Completion percentage by category
+  - Challenges remaining
+  - Category-specific statistics
+
 ---
 
 ## 5. API Endpoints and Workflow
@@ -210,6 +263,91 @@ _Example Workflow:_
    If accepted, points are awarded and the user's title is updated.
 5. **Social Interaction:**  
    Other users can comment on, like/dislike, or follow contributors to engage with the community.
+
+### Challenge Management
+
+```http
+# Categories
+GET /api/categories/                    # List all categories
+GET /api/categories/{slug}/            # Get category details
+
+# Challenges
+GET /api/challenges/                    # List all challenges
+GET /api/challenges/?category={slug}    # Filter by category
+GET /api/challenges/?difficulty={level} # Filter by difficulty
+GET /api/challenges/?tags={tag1,tag2}   # Filter by tags
+GET /api/challenges/{slug}/            # Get challenge details
+
+# Progress
+GET /api/challenges/my_progress/        # Get user progress
+```
+
+### Challenge Response Format
+
+```json
+{
+  "id": 1,
+  "title": "Python Variables",
+  "slug": "python-variables",
+  "description": "Learn Python variables",
+  "difficulty": "easy",
+  "points": 10,
+  "category": {
+    "name": "Python Mastery",
+    "slug": "python-mastery",
+    "icon": "fa-python"
+  },
+  "tags": ["python", "basics"],
+  "attachments": [
+    {
+      "title": "test_template.py",
+      "file": "/media/attachments/test_template.py",
+      "description": "Template for testing",
+      "file_type": "template"
+    }
+  ],
+  "prerequisites": [],
+  "estimated_time": 30,
+  "completion_rate": 75.5,
+  "user_status": {
+    "status": "completed",
+    "submitted_at": "2024-02-18T12:00:00Z"
+  }
+}
+```
+
+### Progress Response Format
+
+```json
+{
+  "total_challenges": 50,
+  "completed_challenges": 25,
+  "total_points": 500,
+  "completion_by_category": {
+    "Python Mastery": {
+      "total": 20,
+      "completed": 15,
+      "percentage": 75.0
+    },
+    "Web Development": {
+      "total": 30,
+      "completed": 10,
+      "percentage": 33.3
+    }
+  },
+  "recent_solutions": [
+    {
+      "challenge": {
+        "title": "Python Decorators",
+        "slug": "python-decorators",
+        "difficulty": "hard"
+      },
+      "status": "accepted",
+      "submitted_at": "2024-02-18T14:30:00Z"
+    }
+  ]
+}
+```
 
 ---
 
