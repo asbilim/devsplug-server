@@ -5,18 +5,20 @@ from .views import (
     SolutionViewSet,
     CommentViewSet,
     LikeViewSet,
-    DislikeViewSet
+    DislikeViewSet,
+    CategoryViewSet
 )
 
 router = DefaultRouter()
-router.register(r'challenges', ChallengeViewSet, basename='challenge')
+router.register(r'categories', CategoryViewSet)
+router.register(r'listings', ChallengeViewSet)
 router.register(r'solutions', SolutionViewSet, basename='solution')
 
-# Nested routers for solution-related endpoints
+# Nested routes for comments and reactions
 solution_router = DefaultRouter()
-solution_router.register(r'comments', CommentViewSet, basename='solution-comment')
-solution_router.register(r'likes', LikeViewSet, basename='solution-like')
-solution_router.register(r'dislikes', DislikeViewSet, basename='solution-dislike')
+solution_router.register(r'comments', CommentViewSet, basename='solution-comments')
+solution_router.register(r'likes', LikeViewSet, basename='solution-likes')
+solution_router.register(r'dislikes', DislikeViewSet, basename='solution-dislikes')
 
 urlpatterns = [
     path('', include(router.urls)),

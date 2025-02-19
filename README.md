@@ -4,32 +4,43 @@ A Django-based platform for coding challenges with social features and gamificat
 
 ## 🌟 Features
 
+- **Structured Learning Paths**
+
+  - Categorized challenges
+  - Prerequisites system
+  - Estimated completion times
+  - Attachments and resources
+  - Progress tracking
+
 - **Coding Challenges**
 
   - Multiple difficulty levels
   - Point-based rewards
   - Solution submissions
   - Code documentation
+  - Test cases and templates
+
+- **Progress Tracking**
+
+  - Category-based progress
+  - Completion statistics
+  - Achievement titles
+  - Learning path progress
+  - Recent activity
 
 - **Social Features**
-
   - Follow other developers
   - Like/dislike solutions
   - Comment on submissions
   - Private/public solutions
-
-- **User Progress**
-  - Experience points
-  - Achievement titles
-  - Progress tracking
-  - Leaderboards
 
 ## 🛠️ Tech Stack
 
 - Django 3.2+
 - Django REST Framework
 - JWT Authentication
-- SQLite/PostgreSQL
+- PostgreSQL
+- AWS S3 Compatible Storage
 - Custom Test Runner
 
 ## 🚀 Quick Start
@@ -55,13 +66,30 @@ env\Scripts\activate     # Windows
 pip install -r requirements.txt
 ```
 
-4. Run migrations:
+4. Configure environment variables:
+   Copy `.env.example` to `.env` and update the values:
+
+   ```
+   DEBUG=True
+   SECRET_KEY=your-secret-key
+   DB_NAME=devsplug
+   DB_USER=postgres
+   ...
+   ```
+
+5. Run migrations:
 
 ```bash
 python manage.py migrate
 ```
 
-5. Start the server:
+6. Load sample data (optional):
+
+```bash
+python manage.py populate_challenges
+```
+
+7. Start the server:
 
 ```bash
 python manage.py runserver
