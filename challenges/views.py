@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from rest_framework.pagination import PageNumberPagination
+import logging
 
 from .models import Challenge, Solution, Comment, Like, Dislike, Category
 from .serializer import (
@@ -18,6 +19,8 @@ from .serializer import (
     CategorySerializer,
     UserProgressSerializer
 )
+
+logger = logging.getLogger(__name__)
 
 # New Core Endpoints
 
@@ -94,7 +97,7 @@ class ChallengeViewSet(ModelViewSet):
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
         except Exception as e:
-            print(f"Error retrieving challenge: {str(e)}")  # Temporary debug logging
+            logger.error(f"Error retrieving challenge: {str(e)}", exc_info=True)
             return Response(
                 {"error": "Unable to retrieve challenge details", "detail": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -153,3 +156,11 @@ class DislikeViewSet(ModelViewSet):
         if getattr(self, 'swagger_fake_view', False):  # Handling swagger schema generation
             return Dislike.objects.none()
         return Dislike.objects.filter(solution_id=self.kwargs['solution_pk'])
+
+def your_view(request):
+    try:
+        # Your view logic here
+        pass
+    except Exception as e:
+        logger.error(f"Error in your_view: {str(e)}", exc_info=True)
+        return HttpResponse("Internal Server Error", status=500)
