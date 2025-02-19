@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import timedelta
 import sys
 from dotenv import load_dotenv
+import logging.handlers
 
 # Load environment variables
 load_dotenv()
@@ -134,57 +135,74 @@ AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL')
 AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
 AWS_S3_SIGNATURE_VERSION = os.getenv('AWS_S3_SIGNATURE_VERSION')
 
-# LOGGING CONFIGURATION
+# Single consolidated LOGGING configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
+            'format': '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s',
+            'datefmt': '%d/%b/%Y %H:%M:%S'
         },
     },
     'handlers': {
         'console': {
-            'level': 'DEBUG',
             'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
+            'formatter': 'verbose'
         },
-        'file': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': 'debug.log',
-            'maxBytes': 15728640,  # 15MB
-            'backupCount': 10,
+        'gunicorn': {
+            'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
     },
     'loggers': {
         '': {  # Root logger
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG',
+            'handlers': ['console'],
+            'level': 'WARNING',
         },
         'django': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.request': {  # Captures 500 errors
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.server': {  # Captures 500 errors
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'gunicorn.error': {
+            'handlers': ['gunicorn'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+        'gunicorn.access': {
+            'handlers': ['gunicorn'],
             'level': 'INFO',
-            'propagate': False,
-        },
-        'django.server': {
-            'handlers': ['console', 'file'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'django.request': {
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-    },
+            'propagate': True,
+        }
+    }
 }
+
+# For production (when DEBUG is False)
+if not DEBUG:
+    # Add file handler for production
+    LOGGING['handlers']['file'] = {
+        'class': 'logging.FileHandler',
+        'filename': '/var/log/django-error.log',  # Make sure this path is writable
+        'formatter': 'verbose',
+    }
+    # Add file handler to all loggers
+    for logger in LOGGING['loggers'].values():
+        logger['handlers'] = ['console', 'file']
+
+# Create logs directory if it doesn't exist
+LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+os.makedirs(LOGS_DIR, exist_ok=True)
 
 # REST FRAMEWORK CONFIGURATION
 REST_FRAMEWORK = {
@@ -550,7 +568,7 @@ EMAIL_VERIFICATION_TIMEOUT = 48 * 3600  # 48 hours in seconds
 PASSWORD_RESET_TIMEOUT = 24 * 3600  # 24 hours in seconds
 
 # Site URL for email links
-SITE_URL = os.getenv('SITE_URL', 'http://localhost:3000')
+SITE_URL = os.getenv('SITE_URL', 'https://devsplug.com')
 
 # Email Template Settings
 EMAIL_TEMPLATE_DIR = os.path.join(BASE_DIR, 'authentication/templates/emails')

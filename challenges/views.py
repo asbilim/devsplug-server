@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from rest_framework.pagination import PageNumberPagination
 import logging
+import traceback
 
 from .models import Challenge, Solution, Comment, Like, Dislike, Category
 from .serializer import (
@@ -97,9 +98,14 @@ class ChallengeViewSet(ModelViewSet):
             serializer = self.get_serializer(instance)
             return Response(serializer.data)
         except Exception as e:
-            logger.error(f"Error retrieving challenge: {str(e)}", exc_info=True)
+            logger.error(
+                f"Error retrieving challenge: {str(e)}\n"
+                f"Path: {request.path}\n"
+                f"Method: {request.method}\n"
+                f"Traceback: {traceback.format_exc()}"
+            )
             return Response(
-                {"error": "Unable to retrieve challenge details", "detail": str(e)},
+                {"error": "Unable to retrieve challenge details"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
