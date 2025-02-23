@@ -186,7 +186,7 @@ class Command(BaseCommand):
 
         
         # These 6 challenges complete the set of 10 when added to your existing 4
-        challenge_data += [
+        challenges_data += [
             {
                 "title": "Even or Odd",
                 "description": "Write a program that takes an integer as input and prints whether it is even or odd.",
