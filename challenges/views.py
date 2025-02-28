@@ -10,7 +10,7 @@ import traceback
 from django.utils import timezone
 
 from .models import Challenge, Solution, Comment, Like, Dislike, Category, UserChallenge
-from .serializer import (
+from .serializers import (
     ChallengeSerializer,
     ChallengeListSerializer,
     ChallengeDetailSerializer,
