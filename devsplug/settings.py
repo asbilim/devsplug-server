@@ -36,7 +36,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'challenges',
     'taggit',
-    'drf_yasg',
+    'drf_spectacular',
     'django_crontab',
     'django_extensions',  # Django Extensions
     'allauth',
@@ -233,6 +233,7 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'dj_rest_auth.jwt_auth.JWTCookieAuthentication',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
 
 # JWT CONFIGURATION
@@ -650,3 +651,28 @@ if DEBUG:
             },
         },
     }
+
+# Add drf_spectacular settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Devsplug API',
+    'DESCRIPTION': 'Devsplug API documentation',
+    'VERSION': 'v1',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'CONTACT': {
+        'name': 'Devsplug Team',
+        'email': 'info@devsplug.com',
+    },
+    # Optional UI settings
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': False,
+    },
+    # Optional: Control which auth methods to show in the docs
+    'SECURITY': [
+        {
+            'Bearer': [],
+        }
+    ],
+}
