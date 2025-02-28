@@ -154,6 +154,39 @@ class ChallengeViewSet(ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+    @action(detail=True, methods=['get'])
+    def check_subscription(self, request, slug=None):
+        """Check if the authenticated user is subscribed to this challenge"""
+        try:
+            challenge = self.get_object()
+            user = request.user
+            
+            # Check if user is authenticated
+            if not user.is_authenticated:
+                return Response({
+                    'is_subscribed': False,
+                    'authenticated': False,
+                    'message': 'User is not authenticated'
+                }, status=status.HTTP_200_OK)
+            
+            subscription = UserChallenge.objects.filter(
+                user=user,
+                challenge=challenge,
+                is_subscribed=True
+            ).exists()
+            
+            return Response({
+                'is_subscribed': subscription,
+                'authenticated': True
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error checking subscription: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "Unable to check subscription status"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
     def retrieve(self, request, *args, **kwargs):
         try:
             instance = self.get_object()

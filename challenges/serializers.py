@@ -86,6 +86,34 @@ class ChallengeDetailSerializer(ChallengeListSerializer):
             'completion_rate': stats['completion_rate']
         }
 
+    def get_user_status(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            solution = Solution.objects.filter(
+                user=request.user,
+                challenge=obj
+            ).first()
+            
+            # Check subscription status
+            is_subscribed = UserChallenge.objects.filter(
+                user=request.user,
+                challenge=obj,
+                is_subscribed=True
+            ).exists()
+            
+            status_data = {
+                'is_subscribed': is_subscribed
+            }
+            
+            if solution:
+                status_data.update({
+                    'solution_status': solution.status,
+                    'submitted_at': solution.created_at
+                })
+            
+            return status_data
+        return None
+
 class ChallengeSerializer(TaggitSerializer, serializers.ModelSerializer):
     tags = TagListSerializerField()
     
