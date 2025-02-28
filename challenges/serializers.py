@@ -219,3 +219,29 @@ class UserProgressSerializer(serializers.Serializer):
             'recent_solutions': recent_solutions,
             'subscribed_challenges': data['subscribed_challenges']
         }
+
+class SolutionCreatorSerializer(serializers.ModelSerializer):
+    """Serializer for solution creator information"""
+    class Meta:
+        model = get_user_model()
+        fields = ['id', 'username', 'email', 'profile', 'title']
+
+class PublicSolutionSerializer(serializers.ModelSerializer):
+    """Serializer for public solutions with creator information"""
+    user = SolutionCreatorSerializer(read_only=True)
+    likes_count = serializers.SerializerMethodField()
+    comments_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Solution
+        fields = [
+            'id', 'user', 'code', 'documentation',
+            'language', 'status', 'created_at', 'likes_count', 
+            'comments_count'
+        ]
+    
+    def get_likes_count(self, obj):
+        return obj.likes.count()
+    
+    def get_comments_count(self, obj):
+        return obj.comments.count()

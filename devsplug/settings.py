@@ -64,6 +64,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'devsplug.middleware.SchemaErrorMiddleware',
 ]
 
 # URL CONFIGURATION
@@ -675,4 +676,10 @@ SPECTACULAR_SETTINGS = {
             'Bearer': [],
         }
     ],
+    # Add this to fix the 500 error
+    'SERVE_AUTHENTICATION': None,
+    'SCHEMA_PATH_PREFIX': '/api/',
 }
+
+# Add this setting
+JWT_AUTH_COOKIE = 'jwt-auth'

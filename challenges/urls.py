@@ -15,6 +15,7 @@ from .views import (
 router = DefaultRouter()
 router.register(r'listings', ChallengeViewSet, basename='challenge')
 router.register(r'categories', CategoryViewSet, basename='category')
+router.register(r'solutions', SolutionViewSet, basename='solution')
 
 # Create a nested router for subscriptions
 challenge_router = routers.NestedDefaultRouter(router, r'listings', lookup='challenge')

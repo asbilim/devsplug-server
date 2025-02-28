@@ -8,6 +8,7 @@ from rest_framework.pagination import PageNumberPagination
 import logging
 import traceback
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema
 
 from .models import Challenge, Solution, Comment, Like, Dislike, Category, UserChallenge
 from .serializers import (
@@ -20,7 +21,8 @@ from .serializers import (
     DislikeSerializer,
     CategorySerializer,
     UserProgressSerializer,
-    UserChallengeSerializer
+    UserChallengeSerializer,
+    PublicSolutionSerializer
 )
 
 logger = logging.getLogger(__name__)
@@ -187,6 +189,69 @@ class SolutionViewSet(ModelViewSet):
         challenge_id = self.request.data.get('challenge')
         challenge = get_object_or_404(Challenge, id=challenge_id)
         serializer.save(user=self.request.user, challenge=challenge)
+
+    @extend_schema(
+        description="List all public solutions grouped by challenges"
+    )
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
+    def public(self, request):
+        """List all public solutions with creator information, grouped by challenges"""
+        queryset = Solution.objects.filter(is_private=False).select_related('user', 'challenge')
+        
+        # Apply filters
+        language = request.query_params.get('language')
+        if language:
+            queryset = queryset.filter(language__iexact=language)
+        
+        # Apply search filter if provided
+        search = request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(code__icontains=search) | 
+                Q(user__username__icontains=search)
+            )
+        
+        # Order by challenge and then by creation date
+        queryset = queryset.order_by('challenge__title', '-created_at')
+        
+        # Group solutions by challenge
+        solutions_by_challenge = {}
+        for solution in queryset:
+            challenge_id = solution.challenge.id
+            challenge_title = solution.challenge.title
+            
+            if challenge_id not in solutions_by_challenge:
+                solutions_by_challenge[challenge_id] = {
+                    'challenge': {
+                        'id': challenge_id,
+                        'title': challenge_title,
+                        'slug': solution.challenge.slug,
+                        'difficulty': solution.challenge.difficulty
+                    },
+                    'solutions': []
+                }
+            
+            solutions_by_challenge[challenge_id]['solutions'].append({
+                'id': solution.id,
+                'user': {
+                    'id': solution.user.id,
+                    'username': solution.user.username,
+                    'email': solution.user.email,
+                    'profile': solution.user.profile.url if solution.user.profile else None
+                },
+                'code': solution.code,
+                'documentation': solution.documentation,
+                'language': solution.language,
+                'status': solution.status,
+                'created_at': solution.created_at,
+                'likes_count': solution.likes.count(),
+                'comments_count': solution.comments.count()
+            })
+        
+        # Convert to list for response
+        result = list(solutions_by_challenge.values())
+        
+        return Response(result)
 
 class CommentViewSet(ModelViewSet):
     serializer_class = CommentSerializer
