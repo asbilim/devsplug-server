@@ -167,13 +167,16 @@ class UserChallengeSerializer(serializers.ModelSerializer):
     )
     attempts = serializers.SerializerMethodField()
     successful_attempts = serializers.SerializerMethodField()
+    solution_status = serializers.SerializerMethodField()
+    challenge_stats = serializers.SerializerMethodField()
     
     class Meta:
         model = UserChallenge
         fields = [
             'id', 'challenge', 'challenge_id', 'is_subscribed', 
             'subscribed_at', 'last_attempted_at', 'completed', 
-            'completed_at', 'attempts', 'successful_attempts'
+            'completed_at', 'attempts', 'successful_attempts',
+            'solution_status', 'challenge_stats'
         ]
         read_only_fields = [
             'subscribed_at', 'last_attempted_at', 
@@ -185,6 +188,38 @@ class UserChallengeSerializer(serializers.ModelSerializer):
     
     def get_successful_attempts(self, obj):
         return obj.get_successful_attempts()
+    
+    def get_solution_status(self, obj):
+        solution = Solution.objects.filter(
+            user=obj.user,
+            challenge=obj.challenge
+        ).order_by('-created_at').first()
+        
+        if solution:
+            return {
+                'status': solution.status,
+                'submitted_at': solution.created_at,
+                'language': solution.language
+            }
+        return None
+    
+    def get_challenge_stats(self, obj):
+        challenge = obj.challenge
+        total_attempts = Solution.objects.filter(challenge=challenge).count()
+        successful_attempts = Solution.objects.filter(
+            challenge=challenge,
+            status='accepted'
+        ).count()
+        total_likes = Like.objects.filter(
+            solution__challenge=challenge
+        ).count()
+        
+        return {
+            'total_attempts': total_attempts,
+            'successful_attempts': successful_attempts,
+            'total_likes': total_likes,
+            'completion_rate': (successful_attempts / total_attempts * 100) if total_attempts > 0 else 0
+        }
 
 class UserProgressSerializer(serializers.Serializer):
     total_challenges = serializers.IntegerField()

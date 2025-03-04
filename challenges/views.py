@@ -187,6 +187,53 @@ class ChallengeViewSet(ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @action(detail=True, methods=['get'])
+    def check_registration(self, request, slug=None):
+        """Check if the authenticated user has registered this challenge"""
+        try:
+            challenge = self.get_object()
+            user = request.user
+            
+            # Check if user is authenticated
+            if not user.is_authenticated:
+                return Response({
+                    'is_registered': False,
+                    'authenticated': False,
+                    'message': 'User is not authenticated'
+                }, status=status.HTTP_200_OK)
+            
+            # Check if user has any solutions for this challenge
+            is_registered = Solution.objects.filter(
+                user=user,
+                challenge=challenge
+            ).exists()
+            
+            return Response({
+                'is_registered': is_registered,
+                'authenticated': True
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error checking registration: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "Unable to check registration status"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=False, methods=['get'])
+    def my_subscriptions(self, request):
+        """Get all challenges the authenticated user has subscribed to"""
+        if not request.user.is_authenticated:
+            return Response({"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        subscribed_challenges = UserChallenge.objects.filter(
+            user=request.user,
+            is_subscribed=True
+        ).select_related('challenge').order_by('-subscribed_at')
+        
+        serializer = UserChallengeSerializer(subscribed_challenges, many=True, context={'request': request})
+        return Response(serializer.data)
+
     def retrieve(self, request, *args, **kwargs):
         try:
             instance = self.get_object()
