@@ -78,6 +78,13 @@ class ChallengeViewSet(ModelViewSet):
             
         return queryset
 
+    @extend_schema(
+        description="Get the authenticated user's challenge progress, including completed challenges and statistics",
+        responses={
+            200: UserProgressSerializer,
+            401: {"description": "Authentication is required"}
+        }
+    )
     @action(detail=False, methods=['get'])
     def my_progress(self, request):
         """Get the authenticated user's challenge progress"""
@@ -87,15 +94,33 @@ class ChallengeViewSet(ModelViewSet):
         serializer = UserProgressSerializer(request.user)
         return Response(serializer.data)
 
+    @extend_schema(
+        description="Submit a solution for a challenge. Users cannot submit multiple solutions with the same programming language for a challenge.",
+        request=SolutionSerializer,
+        responses={
+            201: SolutionSerializer,
+            400: {"description": "Bad request, including cases where the user has already submitted a solution in the specified language"},
+            404: {"description": "Challenge not found"}
+        }
+    )
     @action(detail=True, methods=['post'])
     def submit_solution(self, request, slug=None):
         challenge = self.get_object()
-        serializer = SolutionSerializer(data=request.data)
+        serializer = SolutionSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save(user=request.user, challenge=challenge)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(
+        description="Subscribe the authenticated user to a challenge",
+        responses={
+            201: UserChallengeSerializer,
+            200: UserChallengeSerializer,
+            401: {"description": "Authentication is required"},
+            500: {"description": "Internal server error"}
+        }
+    )
     @action(detail=True, methods=['post'], url_path='subscribe')
     def subscribe(self, request, slug=None):
         try:
@@ -129,6 +154,14 @@ class ChallengeViewSet(ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @extend_schema(
+        description="Unsubscribe the authenticated user from a challenge",
+        responses={
+            204: {"description": "Successfully unsubscribed"},
+            401: {"description": "Authentication is required"},
+            404: {"description": "Not subscribed to this challenge"}
+        }
+    )
     @action(detail=True, methods=['post'])
     def unsubscribe(self, request, slug=None):
         challenge = self.get_object()
@@ -154,6 +187,19 @@ class ChallengeViewSet(ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+    @extend_schema(
+        description="Check if the authenticated user is subscribed to this challenge",
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "is_subscribed": {"type": "boolean", "description": "Whether the user is subscribed to this challenge"},
+                    "authenticated": {"type": "boolean", "description": "Whether the user is authenticated"}
+                }
+            },
+            500: {"description": "Internal server error"}
+        }
+    )
     @action(detail=True, methods=['get'])
     def check_subscription(self, request, slug=None):
         """Check if the authenticated user is subscribed to this challenge"""
@@ -187,6 +233,20 @@ class ChallengeViewSet(ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @extend_schema(
+        description="Check if the authenticated user has registered for this challenge",
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "is_registered": {"type": "boolean", "description": "Whether the user has registered for this challenge"},
+                    "authenticated": {"type": "boolean", "description": "Whether the user is authenticated"}
+                }
+            },
+            401: {"description": "Authentication is required"},
+            500: {"description": "Internal server error"}
+        }
+    )
     @action(detail=True, methods=['get'])
     def check_registration(self, request, slug=None):
         """Check if the authenticated user has registered this challenge"""
@@ -220,6 +280,13 @@ class ChallengeViewSet(ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @extend_schema(
+        description="Get all challenges the authenticated user has subscribed to",
+        responses={
+            200: UserChallengeSerializer(many=True),
+            401: {"description": "Authentication is required"}
+        }
+    )
     @action(detail=False, methods=['get'])
     def my_subscriptions(self, request):
         """Get all challenges the authenticated user has subscribed to"""

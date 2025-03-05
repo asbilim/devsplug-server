@@ -34,6 +34,7 @@
       - [Social Models](#social-models)
     - [6.2 Views](#62-views)
     - [6.3 Serializers](#63-serializers)
+    - [6.4 API Documentation](#64-api-documentation)
   - [7. Testing and Future Extensions](#7-testing-and-future-extensions)
     - [Testing](#testing)
     - [Future Extensions](#future-extensions)
@@ -280,17 +281,20 @@ Enhanced user progress tracking:
 
 ```http
 # Challenge Management
-GET /api/challenges/                    # List all challenges
-GET /api/challenges/{slug}/            # Get challenge details
-POST /api/challenges/{slug}/subscribe   # Subscribe to a challenge
-POST /api/challenges/{slug}/unsubscribe # Unsubscribe from a challenge
+GET /api/challenges/                     # List all challenges
+GET /api/challenges/{slug}/              # Get challenge details
+POST /api/challenges/{slug}/subscribe    # Subscribe to a challenge
+POST /api/challenges/{slug}/unsubscribe  # Unsubscribe from a challenge
+GET /api/challenges/{slug}/check-subscription/  # Check if user is subscribed to a challenge
+GET /api/challenges/{slug}/check-registration/  # Check if user has registered (submitted solution) for a challenge
 
-# Subscriptions
-GET /api/subscriptions/                # List user's subscribed challenges
+# User Subscriptions
+GET /api/challenges/my-subscriptions/    # List all challenges the user has subscribed to
+GET /api/challenges/my-progress/         # Get user's overall challenge progress
 
 # Solutions
-POST /api/challenges/{slug}/solutions/  # Submit a solution with documentation
-GET /api/challenges/{slug}/solutions/   # List solutions for a challenge
+POST /api/challenges/{slug}/submit-solution/  # Submit a solution with documentation (unique language per challenge)
+GET /api/challenges/{slug}/solutions/    # List solutions for a challenge
 ```
 
 ### Challenge Response Format
@@ -327,6 +331,24 @@ GET /api/challenges/{slug}/solutions/   # List solutions for a challenge
 }
 ```
 
+### Subscription Check Response Format
+
+```json
+{
+  "is_subscribed": true,
+  "authenticated": true
+}
+```
+
+### Registration Check Response Format
+
+```json
+{
+  "is_registered": true,
+  "authenticated": true
+}
+```
+
 ### Progress Response Format
 
 ```json
@@ -360,29 +382,49 @@ GET /api/challenges/{slug}/solutions/   # List solutions for a challenge
 }
 ```
 
-### Subscription Response Format
+### My Subscriptions Response Format
 
 ```json
-{
-  "id": 1,
-  "challenge": {
-    "title": "Python Variables",
-    "slug": "python-variables",
-    "difficulty": "easy",
-    "points": 10,
-    "category": {
-      "name": "Python Mastery",
-      "slug": "python-mastery"
+[
+  {
+    "id": 1,
+    "challenge": {
+      "id": 1,
+      "title": "Python Variables",
+      "slug": "python-variables",
+      "description": "Learn Python variables",
+      "difficulty": "easy",
+      "points": 10,
+      "tags": ["python", "basics"],
+      "category": {
+        "name": "Python Mastery",
+        "slug": "python-mastery",
+        "icon": "fa-python"
+      },
+      "estimated_time": 30,
+      "completion_rate": 75.5,
+      "user_status": null
+    },
+    "is_subscribed": true,
+    "subscribed_at": "2024-02-19T12:00:00Z",
+    "last_attempted_at": "2024-02-19T14:30:00Z",
+    "completed": true,
+    "completed_at": "2024-02-19T14:30:00Z",
+    "attempts": 3,
+    "successful_attempts": 1,
+    "solution_status": {
+      "status": "accepted",
+      "submitted_at": "2024-02-19T14:30:00Z",
+      "language": "python"
+    },
+    "challenge_stats": {
+      "total_attempts": 100,
+      "successful_attempts": 75,
+      "total_likes": 50,
+      "completion_rate": 75.0
     }
-  },
-  "is_subscribed": true,
-  "subscribed_at": "2024-02-19T12:00:00Z",
-  "last_attempted_at": "2024-02-19T14:30:00Z",
-  "completed": true,
-  "completed_at": "2024-02-19T14:30:00Z",
-  "attempts": 3,
-  "successful_attempts": 1
-}
+  }
+]
 ```
 
 ### Solution Response Format
@@ -406,6 +448,22 @@ GET /api/challenges/{slug}/solutions/   # List solutions for a challenge
 }
 ```
 
+### Solution Submission Validation
+
+When submitting a solution, the system ensures:
+
+1. The user is authenticated
+2. The challenge exists
+3. **The user has not already submitted a solution using the same programming language for this challenge**
+
+If a user attempts to submit a solution with a language they've already used, the system returns:
+
+```json
+{
+  "language": "You have already submitted a solution for this challenge using python. Please choose a different language."
+}
+```
+
 ---
 
 ## 6. Implementation Details
@@ -424,6 +482,7 @@ _Key Features:_
 - Challenge subscription tracking
 - Progress monitoring
 - Multiple attempts tracking
+- **Language uniqueness enforcement:** Users cannot submit multiple solutions in the same language for a challenge
 
 _Refer to:_ `challenges/models.py`
 
@@ -438,6 +497,14 @@ _Refer to:_ `challenges/models.py` and `authentication/models.py` (for Follow).
 ### 6.2 Views
 
 - **ChallengeViewSet:** Handles retrieving challenges and solution submissions.
+
+  - `my_progress`: Get user's overall challenge progress
+  - `submit_solution`: Submit solution for a challenge (with language validation)
+  - `subscribe`/`unsubscribe`: Manage challenge subscriptions
+  - `check_subscription`: Check if user is subscribed to a challenge
+  - `check_registration`: Check if user has registered (submitted solution) for a challenge
+  - `my_subscriptions`: Get all challenges the user has subscribed to
+
 - **SolutionViewSet:** Manages user submissions.
 - **FollowViewSet:** Manages follow/unfollow requests.
 
@@ -448,12 +515,43 @@ _Refer to:_ `challenges/views.py` and `authentication/views.py`
 Serializers are adjusted to match the refactored models:
 
 - **ChallengeSerializer**
-- **SolutionSerializer**
+- **SolutionSerializer:** Includes validation to prevent duplicate language submissions
 - **CommentSerializer**
 - **LikeSerializer / DislikeSerializer**
 - **FollowSerializer**
+- **UserChallengeSerializer:** Enhanced to include solution status and challenge statistics
 
 _Refer to:_ `challenges/serializer.py` and `authentication/serializer.py`
+
+### 6.4 API Documentation
+
+The API is fully documented using drf-spectacular, which generates OpenAPI schema documentation. This documentation is accessible through:
+
+- **Swagger UI:** `/api/docs/` - Interactive documentation with request/response examples
+- **ReDoc:** `/api/redoc/` - Readable documentation format
+- **Raw Schema:** `/api/schema/` - OpenAPI schema in JSON format
+
+Each endpoint is documented with:
+
+- Clear descriptions
+- Request/response formats
+- Possible response codes
+- Authentication requirements
+- Parameter descriptions
+
+_Example:_
+
+```python
+@extend_schema(
+    description="Submit a solution for a challenge. Users cannot submit multiple solutions with the same programming language for a challenge.",
+    request=SolutionSerializer,
+    responses={
+        201: SolutionSerializer,
+        400: {"description": "Bad request, including cases where the user has already submitted a solution in the specified language"},
+        404: {"description": "Challenge not found"}
+    }
+)
+```
 
 ---
 
@@ -468,9 +566,14 @@ _Refer to:_ `challenges/serializer.py` and `authentication/serializer.py`
 ### Future Extensions
 
 - **Automated Code Evaluation:** Integrate automated testing of submitted code.
-- **Real-Time Notifications:** Implement WebSocket support for live updates.
+- **Real-Time Notifications:** Implement WebSocket support for live updates when solutions are reviewed.
 - **Enhanced User Feeds:** Create personalized feeds based on follow relationships.
 - **Advanced Commenting:** Introduce threaded discussions and moderation tools.
+- **IDE Integration:** Add ability to submit solutions directly from integrated code editors.
+- **Multiple Solution Languages:** With the solution language uniqueness validation, build a feature to showcase user proficiency across multiple programming languages.
+- **Challenge Analytics:** Extend the dashboard to show language popularity, average completion time, and other metrics for challenges.
+- **Learning Paths:** Create sequential learning paths with prerequisite challenges to guide users through a structured learning journey.
+- **Solution Comparison:** Allow users to compare their solutions with others (showing differences, efficiency metrics, etc.).
 
 ### Test Documentation
 

@@ -132,6 +132,30 @@ class SolutionSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'challenge', 'code', 'documentation', 'language', 
                  'status', 'created_at', 'is_private']
         read_only_fields = ['user', 'status']
+    
+    def validate(self, data):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            raise serializers.ValidationError("Authentication required")
+        
+        # When creating a new solution (not updating)
+        if self.instance is None:
+            challenge = data.get('challenge')
+            language = data.get('language')
+            
+            # Check if user already has a solution for this challenge with this language
+            existing_solution = Solution.objects.filter(
+                user=request.user,
+                challenge=challenge,
+                language=language
+            ).exists()
+            
+            if existing_solution:
+                raise serializers.ValidationError({
+                    "language": f"You have already submitted a solution for this challenge using {language}. Please choose a different language."
+                })
+        
+        return data
 
 class CommentSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
