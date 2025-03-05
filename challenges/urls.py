@@ -15,6 +15,7 @@ from .views import (
 router = DefaultRouter()
 router.register(r'listings', ChallengeViewSet, basename='challenge')
 router.register(r'categories', CategoryViewSet, basename='category')
+router.register(r'solutions', SolutionViewSet, basename='solution')
 
 # Create a nested router for subscriptions
 challenge_router = routers.NestedDefaultRouter(router, r'listings', lookup='challenge')
@@ -41,4 +42,6 @@ urlpatterns = [
     path('', include(dislikes_router.urls)),
     path('listings/<slug:slug>/subscribe/', ChallengeViewSet.as_view({'post': 'subscribe'}), name='challenge-subscribe'),
     path('listings/<slug:slug>/unsubscribe/', ChallengeViewSet.as_view({'post': 'unsubscribe'}), name='challenge-unsubscribe'),
+    path('listings/<slug:slug>/check-subscription/', ChallengeViewSet.as_view({'get': 'check_subscription'}), name='challenge-check-subscription'),
+    path('listings/<slug:slug>/check-registration/', ChallengeViewSet.as_view({'get': 'check_registration'}), name='challenge-check-registration'),
 ]

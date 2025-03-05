@@ -8,9 +8,10 @@ from rest_framework.pagination import PageNumberPagination
 import logging
 import traceback
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema
 
 from .models import Challenge, Solution, Comment, Like, Dislike, Category, UserChallenge
-from .serializer import (
+from .serializers import (
     ChallengeSerializer,
     ChallengeListSerializer,
     ChallengeDetailSerializer,
@@ -20,7 +21,8 @@ from .serializer import (
     DislikeSerializer,
     CategorySerializer,
     UserProgressSerializer,
-    UserChallengeSerializer
+    UserChallengeSerializer,
+    PublicSolutionSerializer
 )
 
 logger = logging.getLogger(__name__)
@@ -76,6 +78,13 @@ class ChallengeViewSet(ModelViewSet):
             
         return queryset
 
+    @extend_schema(
+        description="Get the authenticated user's challenge progress, including completed challenges and statistics",
+        responses={
+            200: UserProgressSerializer,
+            401: {"description": "Authentication is required"}
+        }
+    )
     @action(detail=False, methods=['get'])
     def my_progress(self, request):
         """Get the authenticated user's challenge progress"""
@@ -85,15 +94,33 @@ class ChallengeViewSet(ModelViewSet):
         serializer = UserProgressSerializer(request.user)
         return Response(serializer.data)
 
+    @extend_schema(
+        description="Submit a solution for a challenge. Users cannot submit multiple solutions with the same programming language for a challenge.",
+        request=SolutionSerializer,
+        responses={
+            201: SolutionSerializer,
+            400: {"description": "Bad request, including cases where the user has already submitted a solution in the specified language"},
+            404: {"description": "Challenge not found"}
+        }
+    )
     @action(detail=True, methods=['post'])
     def submit_solution(self, request, slug=None):
         challenge = self.get_object()
-        serializer = SolutionSerializer(data=request.data)
+        serializer = SolutionSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save(user=request.user, challenge=challenge)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(
+        description="Subscribe the authenticated user to a challenge",
+        responses={
+            201: UserChallengeSerializer,
+            200: UserChallengeSerializer,
+            401: {"description": "Authentication is required"},
+            500: {"description": "Internal server error"}
+        }
+    )
     @action(detail=True, methods=['post'], url_path='subscribe')
     def subscribe(self, request, slug=None):
         try:
@@ -127,6 +154,14 @@ class ChallengeViewSet(ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @extend_schema(
+        description="Unsubscribe the authenticated user from a challenge",
+        responses={
+            204: {"description": "Successfully unsubscribed"},
+            401: {"description": "Authentication is required"},
+            404: {"description": "Not subscribed to this challenge"}
+        }
+    )
     @action(detail=True, methods=['post'])
     def unsubscribe(self, request, slug=None):
         challenge = self.get_object()
@@ -151,6 +186,120 @@ class ChallengeViewSet(ModelViewSet):
                 {'detail': 'Not subscribed to this challenge.'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+    @extend_schema(
+        description="Check if the authenticated user is subscribed to this challenge",
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "is_subscribed": {"type": "boolean", "description": "Whether the user is subscribed to this challenge"},
+                    "authenticated": {"type": "boolean", "description": "Whether the user is authenticated"}
+                }
+            },
+            500: {"description": "Internal server error"}
+        }
+    )
+    @action(detail=True, methods=['get'])
+    def check_subscription(self, request, slug=None):
+        """Check if the authenticated user is subscribed to this challenge"""
+        try:
+            challenge = self.get_object()
+            user = request.user
+            
+            # Check if user is authenticated
+            if not user.is_authenticated:
+                return Response({
+                    'is_subscribed': False,
+                    'authenticated': False,
+                    'message': 'User is not authenticated'
+                }, status=status.HTTP_200_OK)
+            
+            subscription = UserChallenge.objects.filter(
+                user=user,
+                challenge=challenge,
+                is_subscribed=True
+            ).exists()
+            
+            return Response({
+                'is_subscribed': subscription,
+                'authenticated': True
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error checking subscription: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "Unable to check subscription status"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @extend_schema(
+        description="Check if the authenticated user has registered for this challenge",
+        responses={
+            200: {
+                "type": "object",
+                "properties": {
+                    "is_registered": {"type": "boolean", "description": "Whether the user has registered for this challenge"},
+                    "authenticated": {"type": "boolean", "description": "Whether the user is authenticated"}
+                }
+            },
+            401: {"description": "Authentication is required"},
+            500: {"description": "Internal server error"}
+        }
+    )
+    @action(detail=True, methods=['get'])
+    def check_registration(self, request, slug=None):
+        """Check if the authenticated user has registered this challenge"""
+        try:
+            challenge = self.get_object()
+            user = request.user
+            
+            # Check if user is authenticated
+            if not user.is_authenticated:
+                return Response({
+                    'is_registered': False,
+                    'authenticated': False,
+                    'message': 'User is not authenticated'
+                }, status=status.HTTP_200_OK)
+            
+            # Check if user has any solutions for this challenge
+            is_registered = Solution.objects.filter(
+                user=user,
+                challenge=challenge
+            ).exists()
+            
+            return Response({
+                'is_registered': is_registered,
+                'authenticated': True
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error checking registration: {str(e)}", exc_info=True)
+            return Response(
+                {"error": "Unable to check registration status"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @extend_schema(
+        description="Get all challenges the authenticated user has subscribed to",
+        responses={
+            200: UserChallengeSerializer(many=True),
+            401: {"description": "Authentication is required"}
+        }
+    )
+    @action(detail=False, methods=['get'])
+    def my_subscriptions(self, request):
+        """Get all challenges the authenticated user has subscribed to"""
+        if not request.user.is_authenticated:
+            return Response({"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        subscribed_challenges = UserChallenge.objects.filter(
+            user=request.user,
+            is_subscribed=True
+        ).select_related('challenge').order_by('-subscribed_at')
+        
+        serializer = UserChallengeSerializer(subscribed_challenges, many=True, context={'request': request})
+        return Response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
         try:
@@ -187,6 +336,69 @@ class SolutionViewSet(ModelViewSet):
         challenge_id = self.request.data.get('challenge')
         challenge = get_object_or_404(Challenge, id=challenge_id)
         serializer.save(user=self.request.user, challenge=challenge)
+
+    @extend_schema(
+        description="List all public solutions grouped by challenges"
+    )
+    @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
+    def public(self, request):
+        """List all public solutions with creator information, grouped by challenges"""
+        queryset = Solution.objects.filter(is_private=False).select_related('user', 'challenge')
+        
+        # Apply filters
+        language = request.query_params.get('language')
+        if language:
+            queryset = queryset.filter(language__iexact=language)
+        
+        # Apply search filter if provided
+        search = request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(code__icontains=search) | 
+                Q(user__username__icontains=search)
+            )
+        
+        # Order by challenge and then by creation date
+        queryset = queryset.order_by('challenge__title', '-created_at')
+        
+        # Group solutions by challenge
+        solutions_by_challenge = {}
+        for solution in queryset:
+            challenge_id = solution.challenge.id
+            challenge_title = solution.challenge.title
+            
+            if challenge_id not in solutions_by_challenge:
+                solutions_by_challenge[challenge_id] = {
+                    'challenge': {
+                        'id': challenge_id,
+                        'title': challenge_title,
+                        'slug': solution.challenge.slug,
+                        'difficulty': solution.challenge.difficulty
+                    },
+                    'solutions': []
+                }
+            
+            solutions_by_challenge[challenge_id]['solutions'].append({
+                'id': solution.id,
+                'user': {
+                    'id': solution.user.id,
+                    'username': solution.user.username,
+                    'email': solution.user.email,
+                    'profile': solution.user.profile.url if solution.user.profile else None
+                },
+                'code': solution.code,
+                'documentation': solution.documentation,
+                'language': solution.language,
+                'status': solution.status,
+                'created_at': solution.created_at,
+                'likes_count': solution.likes.count(),
+                'comments_count': solution.comments.count()
+            })
+        
+        # Convert to list for response
+        result = list(solutions_by_challenge.values())
+        
+        return Response(result)
 
 class CommentViewSet(ModelViewSet):
     serializer_class = CommentSerializer
